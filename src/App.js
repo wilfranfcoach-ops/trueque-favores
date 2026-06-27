@@ -38,7 +38,7 @@ function Confeti() {
 
 function RedCircular({ nodos }) {
   if (!nodos || nodos.length === 0) return null;
-  const cx = 200, cy = 210, r = 130, rNodo = 46;
+  const cx = 200, cy = 210, r = 140, rNodo = 42;
   const colores = ["#0f3460", "#e94560", "#533483", "#1a7a4a"];
   const total = nodos.length;
   const posiciones = nodos.map((_, i) => {
@@ -46,7 +46,7 @@ function RedCircular({ nodos }) {
     return { x: cx + r * Math.cos(angulo), y: cy + r * Math.sin(angulo) };
   });
   return (
-    <svg viewBox="0 0 400 420" width="100%" style={{ maxWidth: 420 }}>
+    <svg viewBox="0 0 400 430" width="100%" style={{ maxWidth: 420 }}>
       {posiciones.map((pos, i) => {
         const sig = posiciones[(i + 1) % total];
         return <line key={i} x1={pos.x} y1={pos.y} x2={sig.x} y2={sig.y} stroke="#cbd5e0" strokeWidth="2" strokeDasharray="6 3" />;
@@ -55,33 +55,37 @@ function RedCircular({ nodos }) {
         <g key={i}>
           <circle cx={pos.x} cy={pos.y} r={rNodo + 3} fill="white" stroke={colores[i % colores.length]} strokeWidth="2" opacity="0.3" />
           <circle cx={pos.x} cy={pos.y} r={rNodo} fill={colores[i % colores.length]} />
-          {nodos[i].foto ? (
-            <image
-              href={nodos[i].foto}
-              x={pos.x - rNodo + 4}
-              y={pos.y - rNodo + 4}
-              width={(rNodo - 4) * 2}
-              height={(rNodo - 4) * 2}
-              clipPath={`circle(${rNodo - 4}px at ${rNodo - 4}px ${rNodo - 4}px)`}
-              style={{ borderRadius: "50%" }}
-            />
-          ) : null}
-          <text x={pos.x} y={pos.y - 16} textAnchor="middle" fill="white" fontSize="8.5" fontWeight="bold">
+          {nodos[i].foto && (
+            <>
+              <clipPath id={`clip-${i}`}>
+                <circle cx={pos.x} cy={pos.y - 14} r={13} />
+              </clipPath>
+              <image
+                href={nodos[i].foto}
+                x={pos.x - 13}
+                y={pos.y - 27}
+                width={26}
+                height={26}
+                clipPath={`url(#clip-${i})`}
+              />
+            </>
+          )}
+          <text x={pos.x} y={pos.y + 4} textAnchor="middle" fill="white" fontSize="8.5" fontWeight="bold">
             {nodos[i].servicio.length > 12 ? nodos[i].servicio.slice(0, 12) + "..." : nodos[i].servicio}
           </text>
-          <text x={pos.x} y={pos.y - 4} textAnchor="middle" fill="white" fontSize="7.5" opacity="0.9">
+          <text x={pos.x} y={pos.y + 16} textAnchor="middle" fill="white" fontSize="7.5" opacity="0.9">
             {nodos[i].nombre || nodos[i].email.split("@")[0]}
           </text>
-          <text x={pos.x} y={pos.y + 8} textAnchor="middle" fill="white" fontSize="7" opacity="0.7">
+          <text x={pos.x} y={pos.y + 27} textAnchor="middle" fill="white" fontSize="7" opacity="0.7">
             {"@" + nodos[i].email.split("@")[1]}
           </text>
-          <text x={pos.x} y={pos.y + 22} textAnchor="middle" fill="white" fontSize="7.5" opacity="0.9">
+          <text x={pos.x} y={pos.y + 38} textAnchor="middle" fill="white" fontSize="7.5" opacity="0.9">
             {nodos[i].telefono || ""}
           </text>
         </g>
       ))}
       <text x={cx} y={cy} textAnchor="middle" fontSize="28">🔄</text>
-      <text x={cx} y={cy + 22} textAnchor="middle" fontSize="10" fill="#666">red cerrada</text>
+      <text x={cx} y={cy + 20} textAnchor="middle" fontSize="10" fill="#666">red cerrada</text>
     </svg>
   );
 }
@@ -189,10 +193,48 @@ function AppContenido() {
   const [mensaje, setMensaje] = useState("");
   const [vista, setVista] = useState("buscar");
   const [confeti, setConfeti] = useState(false);
+  const [serviciosActivos, setServiciosActivos] = useState(null);
+  const [buscandoAuto, setBuscandoAuto] = useState(false);
 
   const email = user?.primaryEmailAddress?.emailAddress || "";
   const foto = user?.imageUrl || "";
   const nombre = user?.firstName || "";
+
+  useEffect(() => {
+    if (!email) return;
+    const cargarYBuscar = async () => {
+      setBuscandoAuto(true);
+      try {
+        const res = await fetch(`${API}/mis-servicios/${encodeURIComponent(email)}`);
+        const datos = await res.json();
+        const activos = datos.servicios?.filter(s => s.estado === "activo") || [];
+        setServiciosActivos(activos);
+        const ofreceSrv = activos.find(s => s.tipo === "ofrece");
+        const necesitaSrv = activos.find(s => s.tipo === "necesita");
+        if (ofreceSrv && necesitaSrv) {
+          setOfrece(ofreceSrv.nombre);
+          setNecesita(necesitaSrv.nombre);
+          const respuesta = await fetch(`${API}/buscar-red`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, ofrece: ofreceSrv.nombre, necesita: necesitaSrv.nombre, telefono: "", foto, nombre }),
+          });
+          const datos2 = await respuesta.json();
+          if (datos2.encontrada) {
+            setRed(datos2.red);
+            setConfeti(true);
+            setTimeout(() => setConfeti(false), 4000);
+          } else {
+            setMensaje("Tus servicios están activos. Aún no hay red disponible.");
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+      setBuscandoAuto(false);
+    };
+    cargarYBuscar();
+  }, [email]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const buscarRed = async () => {
     if (!ofrece || !necesita) {
@@ -240,8 +282,26 @@ function AppContenido() {
           </button>
         </div>
       </div>
+
+      {buscandoAuto && (
+        <p style={{ textAlign: "center", color: "#666" }}>🔍 Buscando redes con tus servicios activos...</p>
+      )}
+
+      {serviciosActivos && serviciosActivos.length > 0 && !buscandoAuto && (
+        <div className="card" style={{ background: "#f0fdf4", border: "1px solid #1a7a4a33" }}>
+          <p style={{ margin: 0, fontSize: "0.85rem", color: "#1a7a4a", fontWeight: "bold" }}>
+            ✅ Servicios activos encontrados
+          </p>
+          {serviciosActivos.map(s => (
+            <p key={s.id} style={{ margin: "4px 0", fontSize: "0.8rem", color: "#444", textTransform: "capitalize" }}>
+              • {s.tipo}: {s.nombre}
+            </p>
+          ))}
+        </div>
+      )}
+
       <div className="card">
-        <h2>Que ofreces?</h2>
+        <h2>{serviciosActivos?.length > 0 ? "Actualizar o agregar servicio" : "Que ofreces?"}</h2>
         <input type="text" placeholder="Ej: Barberia, Diseno..." value={ofrece} onChange={e => setOfrece(e.target.value)} />
       </div>
       <div className="card">
