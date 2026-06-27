@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './App.css';
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
 
 function RedCircular({ nodos }) {
   if (!nodos || nodos.length === 0) return null;
@@ -27,83 +28,4 @@ function RedCircular({ nodos }) {
             {nodos[i].email.split("@")[0]}
           </text>
           <text x={pos.x} y={pos.y + 19} textAnchor="middle" fill="white" fontSize="7" opacity="0.7">
-            @{nodos[i].email.split("@")[1]}
-          </text>
-        </g>
-      ))}
-      <text x={cx} y={cy} textAnchor="middle" fontSize="28">🔄</text>
-      <text x={cx} y={cy + 22} textAnchor="middle" fontSize="10" fill="#666">red cerrada</text>
-    </svg>
-  );
-}
-
-function App() {
-  const [email, setEmail] = useState("");
-  const [ofrece, setOfrece] = useState("");
-  const [necesita, setNecesita] = useState("");
-  const [red, setRed] = useState(null);
-  const [cargando, setCargando] = useState(false);
-  const [mensaje, setMensaje] = useState("");
-
-  const buscarRed = async () => {
-    if (!email || !ofrece || !necesita) {
-      alert("Por favor completa todos los campos");
-      return;
-    }
-    setCargando(true);
-    setMensaje("");
-    setRed(null);
-    try {
-      const respuesta = await fetch("http://localhost:4000/buscar-red", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, ofrece, necesita }),
-      });
-      const datos = await respuesta.json();
-      if (datos.encontrada) {
-        setRed(datos.red);
-      } else {
-        setMensaje("No se encontro red por ahora. Tu perfil fue guardado.");
-      }
-    } catch (error) {
-      setMensaje("Error conectando con el servidor.");
-    }
-    setCargando(false);
-  };
-
-  return (
-    <div className="app">
-      <header className="header">
-        <h1>Trueque de Favores</h1>
-        <p>Conecta con tu comunidad. Intercambia servicios sin dinero.</p>
-      </header>
-      <main className="main">
-        <div className="card">
-          <h2>Tu email</h2>
-          <input type="email" placeholder="tu@email.com" value={email} onChange={e => setEmail(e.target.value)} />
-        </div>
-        <div className="card">
-          <h2>Que ofreces?</h2>
-          <input type="text" placeholder="Ej: Barberia, Diseno..." value={ofrece} onChange={e => setOfrece(e.target.value)} />
-        </div>
-        <div className="card">
-          <h2>Que necesitas?</h2>
-          <input type="text" placeholder="Ej: Plomeria, Vendedor..." value={necesita} onChange={e => setNecesita(e.target.value)} />
-        </div>
-        <button className="btn-primary" onClick={buscarRed} disabled={cargando}>
-          {cargando ? "Buscando..." : "Buscar red de trueque"}
-        </button>
-        {mensaje && <p style={{ color: "#666", textAlign: "center" }}>{mensaje}</p>}
-        {red && (
-          <div className="red-resultado">
-            <h2>Red encontrada!</h2>
-            <p>Se encontro una red de {red.length} personas</p>
-            <RedCircular nodos={red} />
-          </div>
-        )}
-      </main>
-    </div>
-  );
-}
-
-export default App;
+            @{nodos[i].em
