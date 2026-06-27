@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
+
+const API = "https://trueque-favores-production.up.railway.app";
 
 function RedCircular({ nodos }) {
   if (!nodos || nodos.length === 0) return null;
@@ -41,6 +43,99 @@ function RedCircular({ nodos }) {
   );
 }
 
+function PanelControl({ email, onVolver }) {
+  const [servicios, setServicios] = useState([]);
+  const [cargando, setCargando] = useState(true);
+
+  const cargarServicios = async () => {
+    setCargando(true);
+    try {
+      const res = await fetch(`${API}/mis-servicios/${encodeURIComponent(email)}`);
+      const datos = await res.json();
+      setServicios(datos.servicios || []);
+    } catch (err) {
+      console.error(err);
+    }
+    setCargando(false);
+  };
+
+  useEffect(() => { cargarServicios(); }, [email]);
+
+  const cambiarEstado = async (id, estado) => {
+    await fetch(`${API}/servicio/${id}/estado`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ estado })
+    });
+    cargarServicios();
+  };
+
+  const eliminar = async (id) => {
+    if (!window.confirm("¿Eliminar este servicio?")) return;
+    await fetch(`${API}/servicio/${id}`, { method: "DELETE" });
+    cargarServicios();
+  };
+
+  const coloresEstado = {
+    activo: "#1a7a4a",
+    inactivo: "#888",
+    en_red: "#e94560",
+    completado: "#533483"
+  };
+
+  return (
+    <div className="main">
+      <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h2 style={{ margin: 0 }}>Mis servicios</h2>
+        <button onClick={onVolver} style={{ background: "none", border: "1px solid #ccc", borderRadius: 8, padding: "6px 14px", cursor: "pointer" }}>
+          ← Volver
+        </button>
+      </div>
+      {cargando ? (
+        <p style={{ textAlign: "center", color: "#666" }}>Cargando...</p>
+      ) : servicios.length === 0 ? (
+        <p style={{ textAlign: "center", color: "#666" }}>No tienes servicios registrados.</p>
+      ) : (
+        servicios.map(s => (
+          <div key={s.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <div>
+              <p style={{ margin: 0, fontWeight: "bold", textTransform: "capitalize" }}>{s.tipo}: {s.nombre}</p>
+              <span style={{
+                fontSize: "0.75rem",
+                background: coloresEstado[s.estado] + "22",
+                color: coloresEstado[s.estado],
+                borderRadius: 6,
+                padding: "2px 8px",
+                fontWeight: "bold"
+              }}>{s.estado}</span>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {s.estado === "activo" && (
+                <button onClick={() => cambiarEstado(s.id, "inactivo")} style={{ fontSize: "0.75rem", padding: "4px 10px", borderRadius: 6, border: "1px solid #ccc", cursor: "pointer", background: "white" }}>
+                  Pausar
+                </button>
+              )}
+              {s.estado === "inactivo" && (
+                <button onClick={() => cambiarEstado(s.id, "activo")} style={{ fontSize: "0.75rem", padding: "4px 10px", borderRadius: 6, border: "1px solid #1a7a4a", cursor: "pointer", background: "white", color: "#1a7a4a" }}>
+                  Activar
+                </button>
+              )}
+              {s.estado === "en_red" && (
+                <button onClick={() => cambiarEstado(s.id, "completado")} style={{ fontSize: "0.75rem", padding: "4px 10px", borderRadius: 6, border: "1px solid #533483", cursor: "pointer", background: "white", color: "#533483" }}>
+                  Completado
+                </button>
+              )}
+              <button onClick={() => eliminar(s.id)} style={{ fontSize: "0.75rem", padding: "4px 10px", borderRadius: 6, border: "1px solid #e94560", cursor: "pointer", background: "white", color: "#e94560" }}>
+                Eliminar
+              </button>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
 function AppContenido() {
   const { user } = useUser();
   const [ofrece, setOfrece] = useState("");
@@ -49,6 +144,7 @@ function AppContenido() {
   const [red, setRed] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [mensaje, setMensaje] = useState("");
+  const [vista, setVista] = useState("buscar");
 
   const email = user?.primaryEmailAddress?.emailAddress || "";
 
@@ -61,7 +157,7 @@ function AppContenido() {
     setMensaje("");
     setRed(null);
     try {
-      const respuesta = await fetch("https://trueque-favores-production.up.railway.app/buscar-red", {
+      const respuesta = await fetch(`${API}/buscar-red`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, ofrece, necesita, telefono }),
@@ -78,12 +174,21 @@ function AppContenido() {
     setCargando(false);
   };
 
+  if (vista === "panel") {
+    return <PanelControl email={email} onVolver={() => setVista("buscar")} />;
+  }
+
   return (
     <main className="main">
       <div className="card" style={{ textAlign: "center" }}>
         <p>Hola, <strong>{user?.firstName || email}</strong></p>
         <p style={{ fontSize: "0.85rem", color: "#666" }}>{email}</p>
-        <UserButton />
+        <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 8 }}>
+          <UserButton />
+          <button onClick={() => setVista("panel")} style={{ fontSize: "0.8rem", padding: "4px 12px", borderRadius: 8, border: "1px solid #ccc", cursor: "pointer", background: "white" }}>
+            Mis servicios
+          </button>
+        </div>
       </div>
       <div className="card">
         <h2>Que ofreces?</h2>
