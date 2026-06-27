@@ -28,4 +28,4 @@ function RedCircular({ nodos }) {
             {nodos[i].email.split("@")[0]}
           </text>
           <text x={pos.x} y={pos.y + 19} textAnchor="middle" fill="white" fontSize="7" opacity="0.7">
-            @{nodos[i].em
+            @{nodos[i].email.split("@")[1]}
