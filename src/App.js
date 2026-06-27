@@ -28,4 +28,102 @@ function RedCircular({ nodos }) {
             {nodos[i].email.split("@")[0]}
           </text>
           <text x={pos.x} y={pos.y + 19} textAnchor="middle" fill="white" fontSize="7" opacity="0.7">
-            @{nodos[i].email.split("@")[1]}
+            {"@" + nodos[i].email.split("@")[1]}
+          </text>
+        </g>
+      ))}
+      <text x={cx} y={cy} textAnchor="middle" fontSize="28">🔄</text>
+      <text x={cx} y={cy + 22} textAnchor="middle" fontSize="10" fill="#666">red cerrada</text>
+    </svg>
+  );
+}
+
+function AppContenido() {
+  const { user } = useUser();
+  const [ofrece, setOfrece] = useState("");
+  const [necesita, setNecesita] = useState("");
+  const [red, setRed] = useState(null);
+  const [cargando, setCargando] = useState(false);
+  const [mensaje, setMensaje] = useState("");
+
+  const email = user?.primaryEmailAddress?.emailAddress || "";
+
+  const buscarRed = async () => {
+    if (!ofrece || !necesita) {
+      alert("Por favor completa todos los campos");
+      return;
+    }
+    setCargando(true);
+    setMensaje("");
+    setRed(null);
+    try {
+      const respuesta = await fetch("https://trueque-favores-production.up.railway.app/buscar-red", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, ofrece, necesita }),
+      });
+      const datos = await respuesta.json();
+      if (datos.encontrada) {
+        setRed(datos.red);
+      } else {
+        setMensaje("No se encontro red por ahora. Tu perfil fue guardado.");
+      }
+    } catch (error) {
+      setMensaje("Error conectando con el servidor.");
+    }
+    setCargando(false);
+  };
+
+  return (
+    <main className="main">
+      <div className="card" style={{ textAlign: "center" }}>
+        <p>Hola, <strong>{user?.firstName || email}</strong></p>
+        <p style={{ fontSize: "0.85rem", color: "#666" }}>{email}</p>
+        <UserButton />
+      </div>
+      <div className="card">
+        <h2>Que ofreces?</h2>
+        <input type="text" placeholder="Ej: Barberia, Diseno..." value={ofrece} onChange={e => setOfrece(e.target.value)} />
+      </div>
+      <div className="card">
+        <h2>Que necesitas?</h2>
+        <input type="text" placeholder="Ej: Plomeria, Vendedor..." value={necesita} onChange={e => setNecesita(e.target.value)} />
+      </div>
+      <button className="btn-primary" onClick={buscarRed} disabled={cargando}>
+        {cargando ? "Buscando..." : "Buscar red de trueque"}
+      </button>
+      {mensaje && <p style={{ color: "#666", textAlign: "center" }}>{mensaje}</p>}
+      {red && (
+        <div className="red-resultado">
+          <h2>Red encontrada!</h2>
+          <p>Se encontro una red de {red.length} personas</p>
+          <RedCircular nodos={red} />
+        </div>
+      )}
+    </main>
+  );
+}
+
+function App() {
+  return (
+    <div className="app">
+      <header className="header">
+        <h1>Trueque de Favores</h1>
+        <p>Conecta con tu comunidad. Intercambia servicios sin dinero.</p>
+      </header>
+      <SignedOut>
+        <div style={{ textAlign: "center", padding: "2rem" }}>
+          <p>Inicia sesión para buscar tu red de trueque</p>
+          <SignInButton mode="modal">
+            <button className="btn-primary">Iniciar sesión / Registrarse</button>
+          </SignInButton>
+        </div>
+      </SignedOut>
+      <SignedIn>
+        <AppContenido />
+      </SignedIn>
+    </div>
+  );
+}
+
+export default App;
