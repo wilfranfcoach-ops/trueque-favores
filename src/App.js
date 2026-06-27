@@ -21,14 +21,17 @@ function RedCircular({ nodos }) {
         <g key={i}>
           <circle cx={pos.x} cy={pos.y} r={rNodo + 3} fill="white" stroke={colores[i % colores.length]} strokeWidth="2" opacity="0.3" />
           <circle cx={pos.x} cy={pos.y} r={rNodo} fill={colores[i % colores.length]} />
-          <text x={pos.x} y={pos.y - 10} textAnchor="middle" fill="white" fontSize="9" fontWeight="bold">
+          <text x={pos.x} y={pos.y - 14} textAnchor="middle" fill="white" fontSize="9" fontWeight="bold">
             {nodos[i].servicio.length > 12 ? nodos[i].servicio.slice(0, 12) + "..." : nodos[i].servicio}
           </text>
-          <text x={pos.x} y={pos.y + 8} textAnchor="middle" fill="white" fontSize="7.5" opacity="0.85">
+          <text x={pos.x} y={pos.y + 2} textAnchor="middle" fill="white" fontSize="7.5" opacity="0.85">
             {nodos[i].email.split("@")[0]}
           </text>
-          <text x={pos.x} y={pos.y + 19} textAnchor="middle" fill="white" fontSize="7" opacity="0.7">
+          <text x={pos.x} y={pos.y + 13} textAnchor="middle" fill="white" fontSize="7" opacity="0.7">
             {"@" + nodos[i].email.split("@")[1]}
+          </text>
+          <text x={pos.x} y={pos.y + 26} textAnchor="middle" fill="white" fontSize="7.5" opacity="0.9">
+            {nodos[i].telefono || ""}
           </text>
         </g>
       ))}
@@ -42,6 +45,7 @@ function AppContenido() {
   const { user } = useUser();
   const [ofrece, setOfrece] = useState("");
   const [necesita, setNecesita] = useState("");
+  const [telefono, setTelefono] = useState("");
   const [red, setRed] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [mensaje, setMensaje] = useState("");
@@ -60,7 +64,7 @@ function AppContenido() {
       const respuesta = await fetch("https://trueque-favores-production.up.railway.app/buscar-red", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, ofrece, necesita }),
+        body: JSON.stringify({ email, ofrece, necesita, telefono }),
       });
       const datos = await respuesta.json();
       if (datos.encontrada) {
@@ -88,6 +92,10 @@ function AppContenido() {
       <div className="card">
         <h2>Que necesitas?</h2>
         <input type="text" placeholder="Ej: Plomeria, Vendedor..." value={necesita} onChange={e => setNecesita(e.target.value)} />
+      </div>
+      <div className="card">
+        <h2>Tu telefono (opcional)</h2>
+        <input type="text" placeholder="Ej: +57 300 123 4567" value={telefono} onChange={e => setTelefono(e.target.value)} />
       </div>
       <button className="btn-primary" onClick={buscarRed} disabled={cargando}>
         {cargando ? "Buscando..." : "Buscar red de trueque"}
