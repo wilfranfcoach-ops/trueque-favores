@@ -4,9 +4,41 @@ import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/c
 
 const API = "https://trueque-favores-production.up.railway.app";
 
+function Confeti() {
+  const piezas = Array.from({ length: 60 }, (_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    color: ["#e94560", "#0f3460", "#533483", "#1a7a4a", "#f5a623", "#50e3c2"][Math.floor(Math.random() * 6)],
+    delay: Math.random() * 2,
+    size: Math.random() * 8 + 6
+  }));
+  return (
+    <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 999 }}>
+      {piezas.map(p => (
+        <div key={p.id} style={{
+          position: "absolute",
+          left: `${p.x}%`,
+          top: "-20px",
+          width: p.size,
+          height: p.size,
+          background: p.color,
+          borderRadius: Math.random() > 0.5 ? "50%" : "2px",
+          animation: `caer 3s ${p.delay}s ease-in forwards`
+        }} />
+      ))}
+      <style>{`
+        @keyframes caer {
+          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 function RedCircular({ nodos }) {
   if (!nodos || nodos.length === 0) return null;
-  const cx = 200, cy = 200, r = 130, rNodo = 44;
+  const cx = 200, cy = 210, r = 130, rNodo = 46;
   const colores = ["#0f3460", "#e94560", "#533483", "#1a7a4a"];
   const total = nodos.length;
   const posiciones = nodos.map((_, i) => {
@@ -14,7 +46,7 @@ function RedCircular({ nodos }) {
     return { x: cx + r * Math.cos(angulo), y: cy + r * Math.sin(angulo) };
   });
   return (
-    <svg viewBox="0 0 400 400" width="100%" style={{ maxWidth: 420 }}>
+    <svg viewBox="0 0 400 420" width="100%" style={{ maxWidth: 420 }}>
       {posiciones.map((pos, i) => {
         const sig = posiciones[(i + 1) % total];
         return <line key={i} x1={pos.x} y1={pos.y} x2={sig.x} y2={sig.y} stroke="#cbd5e0" strokeWidth="2" strokeDasharray="6 3" />;
@@ -23,16 +55,27 @@ function RedCircular({ nodos }) {
         <g key={i}>
           <circle cx={pos.x} cy={pos.y} r={rNodo + 3} fill="white" stroke={colores[i % colores.length]} strokeWidth="2" opacity="0.3" />
           <circle cx={pos.x} cy={pos.y} r={rNodo} fill={colores[i % colores.length]} />
-          <text x={pos.x} y={pos.y - 14} textAnchor="middle" fill="white" fontSize="9" fontWeight="bold">
+          {nodos[i].foto ? (
+            <image
+              href={nodos[i].foto}
+              x={pos.x - rNodo + 4}
+              y={pos.y - rNodo + 4}
+              width={(rNodo - 4) * 2}
+              height={(rNodo - 4) * 2}
+              clipPath={`circle(${rNodo - 4}px at ${rNodo - 4}px ${rNodo - 4}px)`}
+              style={{ borderRadius: "50%" }}
+            />
+          ) : null}
+          <text x={pos.x} y={pos.y - 16} textAnchor="middle" fill="white" fontSize="8.5" fontWeight="bold">
             {nodos[i].servicio.length > 12 ? nodos[i].servicio.slice(0, 12) + "..." : nodos[i].servicio}
           </text>
-          <text x={pos.x} y={pos.y + 2} textAnchor="middle" fill="white" fontSize="7.5" opacity="0.85">
-            {nodos[i].email.split("@")[0]}
+          <text x={pos.x} y={pos.y - 4} textAnchor="middle" fill="white" fontSize="7.5" opacity="0.9">
+            {nodos[i].nombre || nodos[i].email.split("@")[0]}
           </text>
-          <text x={pos.x} y={pos.y + 13} textAnchor="middle" fill="white" fontSize="7" opacity="0.7">
+          <text x={pos.x} y={pos.y + 8} textAnchor="middle" fill="white" fontSize="7" opacity="0.7">
             {"@" + nodos[i].email.split("@")[1]}
           </text>
-          <text x={pos.x} y={pos.y + 26} textAnchor="middle" fill="white" fontSize="7.5" opacity="0.9">
+          <text x={pos.x} y={pos.y + 22} textAnchor="middle" fill="white" fontSize="7.5" opacity="0.9">
             {nodos[i].telefono || ""}
           </text>
         </g>
@@ -59,7 +102,7 @@ function PanelControl({ email, onVolver }) {
     setCargando(false);
   };
 
- useEffect(() => { cargarServicios(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { cargarServicios(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cambiarEstado = async (id, estado) => {
     await fetch(`${API}/servicio/${id}/estado`, {
@@ -145,8 +188,11 @@ function AppContenido() {
   const [cargando, setCargando] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [vista, setVista] = useState("buscar");
+  const [confeti, setConfeti] = useState(false);
 
   const email = user?.primaryEmailAddress?.emailAddress || "";
+  const foto = user?.imageUrl || "";
+  const nombre = user?.firstName || "";
 
   const buscarRed = async () => {
     if (!ofrece || !necesita) {
@@ -160,11 +206,13 @@ function AppContenido() {
       const respuesta = await fetch(`${API}/buscar-red`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, ofrece, necesita, telefono }),
+        body: JSON.stringify({ email, ofrece, necesita, telefono, foto, nombre }),
       });
       const datos = await respuesta.json();
       if (datos.encontrada) {
         setRed(datos.red);
+        setConfeti(true);
+        setTimeout(() => setConfeti(false), 4000);
       } else {
         setMensaje("No se encontro red por ahora. Tu perfil fue guardado.");
       }
@@ -180,8 +228,10 @@ function AppContenido() {
 
   return (
     <main className="main">
+      {confeti && <Confeti />}
       <div className="card" style={{ textAlign: "center" }}>
-        <p>Hola, <strong>{user?.firstName || email}</strong></p>
+        {foto && <img src={foto} alt="perfil" style={{ width: 56, height: 56, borderRadius: "50%", marginBottom: 8, objectFit: "cover" }} />}
+        <p>Hola, <strong>{nombre || email}</strong></p>
         <p style={{ fontSize: "0.85rem", color: "#666" }}>{email}</p>
         <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 8 }}>
           <UserButton />
@@ -208,7 +258,7 @@ function AppContenido() {
       {mensaje && <p style={{ color: "#666", textAlign: "center" }}>{mensaje}</p>}
       {red && (
         <div className="red-resultado">
-          <h2>Red encontrada!</h2>
+          <h2>🎉 Red encontrada!</h2>
           <p>Se encontro una red de {red.length} personas</p>
           <RedCircular nodos={red} />
         </div>
