@@ -59,7 +59,7 @@ function PanelControl({ email, onVolver }) {
     setCargando(false);
   };
 
-  useEffect(() => { cargarServicios(); }, [email]);
+ useEffect(() => { cargarServicios(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cambiarEstado = async (id, estado) => {
     await fetch(`${API}/servicio/${id}/estado`, {
