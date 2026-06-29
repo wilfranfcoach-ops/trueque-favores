@@ -301,12 +301,12 @@ function AppContenido() {
       )}
 
       <div className="card">
-        <h2>{serviciosActivos?.length > 0 ? "Actualizar o agregar servicio" : "Que ofreces?"}</h2>
-        <input type="text" placeholder="Ej: Barberia, Diseno..." value={ofrece} onChange={e => setOfrece(e.target.value)} />
-      </div>
-      <div className="card">
         <h2>Que necesitas?</h2>
         <input type="text" placeholder="Ej: Plomeria, Vendedor..." value={necesita} onChange={e => setNecesita(e.target.value)} />
+      </div>
+      <div className="card">
+        <h2>Que ofreces a cambio?</h2>
+        <input type="text" placeholder="Ej: Barberia, Diseno..." value={ofrece} onChange={e => setOfrece(e.target.value)} />
       </div>
       <div className="card">
         <h2>Tu telefono (opcional)</h2>
