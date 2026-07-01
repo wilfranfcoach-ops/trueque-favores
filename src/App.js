@@ -187,7 +187,7 @@ function AppContenido() {
   const { user } = useUser();
   const [ofrece, setOfrece] = useState("");
   const [necesita, setNecesita] = useState("");
-  const [red, setRed] = useState(null);
+  const [redes, setRedes] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [vista, setVista] = useState("buscar");
@@ -195,34 +195,43 @@ function AppContenido() {
   const [serviciosActivos, setServiciosActivos] = useState(null);
   const [buscandoAuto, setBuscandoAuto] = useState(false);
 
+  // --- Opción B: teléfono manejado por nuestra propia app ---
+  const [telefono, setTelefono] = useState("");
+  const [telefonoInput, setTelefonoInput] = useState("");
+  const [pidiendoTelefono, setPidiendoTelefono] = useState(false);
+  const [guardandoTelefono, setGuardandoTelefono] = useState(false);
+
   const email = user?.primaryEmailAddress?.emailAddress || "";
   const foto = user?.imageUrl || "";
   const nombre = user?.firstName || "";
-  // El teléfono ya no se pide manualmente: viene del dato capturado por Clerk al registrarse.
-  const telefono = user?.primaryPhoneNumber?.phoneNumber || "";
 
   useEffect(() => {
     if (!email) return;
-    const cargarYBuscar = async () => {
+    const cargarTodo = async () => {
       setBuscandoAuto(true);
       try {
-        const res = await fetch(`${API}/mis-servicios/${encodeURIComponent(email)}`);
-        const datos = await res.json();
-        const activos = datos.servicios?.filter(s => s.estado === "activo") || [];
+        // 1. Revisar si ya tenemos el teléfono guardado
+        const resUsuario = await fetch(`${API}/usuario/${encodeURIComponent(email)}`);
+        const datosUsuario = await resUsuario.json();
+        if (datosUsuario.usuario && datosUsuario.usuario.telefono) {
+          setTelefono(datosUsuario.usuario.telefono);
+          setPidiendoTelefono(false);
+        } else {
+          setPidiendoTelefono(true);
+        }
+
+        // 2. Cargar servicios activos (solo para mostrarlos en pantalla)
+        const resServicios = await fetch(`${API}/mis-servicios/${encodeURIComponent(email)}`);
+        const datosServicios = await resServicios.json();
+        const activos = datosServicios.servicios?.filter(s => s.estado === "activo") || [];
         setServiciosActivos(activos);
-        const ofreceSrv = activos.find(s => s.tipo === "ofrece");
-        const necesitaSrv = activos.find(s => s.tipo === "necesita");
-        // Ya no se prellenan los campos del formulario (ofrece/necesita quedan vacíos al entrar).
-        // La búsqueda automática en segundo plano sigue usando los servicios activos guardados.
-        if (ofreceSrv && necesitaSrv) {
-          const respuesta = await fetch(`${API}/buscar-red`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, ofrece: ofreceSrv.nombre, necesita: necesitaSrv.nombre, telefono, foto, nombre }),
-          });
-          const datos2 = await respuesta.json();
-          if (datos2.encontrada) {
-            setRed(datos2.red);
+
+        // 3. Buscar TODAS las redes disponibles para cualquiera de mis servicios activos
+        if (activos.length > 0) {
+          const resRedes = await fetch(`${API}/mis-redes/${encodeURIComponent(email)}`);
+          const datosRedes = await resRedes.json();
+          if (datosRedes.redes && datosRedes.redes.length > 0) {
+            setRedes(datosRedes.redes);
             setConfeti(true);
             setTimeout(() => setConfeti(false), 4000);
           } else {
@@ -234,8 +243,29 @@ function AppContenido() {
       }
       setBuscandoAuto(false);
     };
-    cargarYBuscar();
+    cargarTodo();
   }, [email]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const guardarTelefono = async () => {
+    if (!telefonoInput.trim()) {
+      alert("Por favor ingresa tu teléfono");
+      return;
+    }
+    setGuardandoTelefono(true);
+    try {
+      await fetch(`${API}/usuario`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, telefono: telefonoInput.trim(), foto, nombre })
+      });
+      setTelefono(telefonoInput.trim());
+      setPidiendoTelefono(false);
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo guardar el teléfono, intenta de nuevo.");
+    }
+    setGuardandoTelefono(false);
+  };
 
   const buscarRed = async () => {
     if (!ofrece || !necesita) {
@@ -244,7 +274,6 @@ function AppContenido() {
     }
     setCargando(true);
     setMensaje("");
-    setRed(null);
     try {
       const respuesta = await fetch(`${API}/buscar-red`, {
         method: "POST",
@@ -252,13 +281,16 @@ function AppContenido() {
         body: JSON.stringify({ email, ofrece, necesita, telefono, foto, nombre }),
       });
       const datos = await respuesta.json();
-      if (datos.encontrada) {
-        setRed(datos.red);
+      if (datos.redes && datos.redes.length > 0) {
+        setRedes(datos.redes);
         setConfeti(true);
         setTimeout(() => setConfeti(false), 4000);
       } else {
+        setRedes([]);
         setMensaje("No se encontro red por ahora. Tu perfil fue guardado.");
       }
+      setOfrece("");
+      setNecesita("");
     } catch (error) {
       setMensaje("Error conectando con el servidor.");
     }
@@ -283,6 +315,29 @@ function AppContenido() {
           </button>
         </div>
       </div>
+
+      {pidiendoTelefono && (
+        <div className="card" style={{ border: "1px solid #f5a62355", background: "#fff8e6" }}>
+          <h2>Completa tu perfil</h2>
+          <p style={{ fontSize: "0.85rem", color: "#666" }}>
+            Necesitamos tu teléfono para que puedan contactarte cuando se forme una red. Solo se pide una vez.
+          </p>
+          <input
+            type="text"
+            placeholder="Ej: +57 300 123 4567"
+            value={telefonoInput}
+            onChange={e => setTelefonoInput(e.target.value)}
+          />
+          <button
+            className="btn-primary"
+            onClick={guardarTelefono}
+            disabled={guardandoTelefono}
+            style={{ marginTop: 8 }}
+          >
+            {guardandoTelefono ? "Guardando..." : "Guardar teléfono"}
+          </button>
+        </div>
+      )}
 
       {buscandoAuto && (
         <p style={{ textAlign: "center", color: "#666" }}>🔍 Buscando redes con tus servicios activos...</p>
@@ -310,14 +365,21 @@ function AppContenido() {
         <input type="text" placeholder="Ej: Barberia, Diseno..." value={ofrece} onChange={e => setOfrece(e.target.value)} />
       </div>
       <button className="btn-primary" onClick={buscarRed} disabled={cargando}>
-        {cargando ? "Buscando..." : "Buscar red de trueque"}
+        {cargando ? "Buscando..." : "Agregar y buscar redes"}
       </button>
       {mensaje && <p style={{ color: "#666", textAlign: "center" }}>{mensaje}</p>}
-      {red && (
+      {redes && redes.length > 0 && (
         <div className="red-resultado">
-          <h2>🎉 Red encontrada!</h2>
-          <p>Se encontro una red de {red.length} personas</p>
-          <RedCircular nodos={red} />
+          <h2>🎉 {redes.length === 1 ? "Red encontrada" : `${redes.length} redes encontradas`}!</h2>
+          {redes.map((r, i) => (
+            <div key={i} className="card">
+              <p style={{ margin: 0, fontWeight: "bold" }}>Para lo que necesitas: {r.necesita}</p>
+              <p style={{ margin: "4px 0 12px", fontSize: "0.85rem", color: "#666" }}>
+                Red de {r.red.length} personas
+              </p>
+              <RedCircular nodos={r.red} />
+            </div>
+          ))}
         </div>
       )}
     </main>
