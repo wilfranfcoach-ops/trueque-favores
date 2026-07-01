@@ -187,7 +187,6 @@ function AppContenido() {
   const { user } = useUser();
   const [ofrece, setOfrece] = useState("");
   const [necesita, setNecesita] = useState("");
-  const [telefono, setTelefono] = useState("");
   const [red, setRed] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [mensaje, setMensaje] = useState("");
@@ -199,6 +198,8 @@ function AppContenido() {
   const email = user?.primaryEmailAddress?.emailAddress || "";
   const foto = user?.imageUrl || "";
   const nombre = user?.firstName || "";
+  // El teléfono ya no se pide manualmente: viene del dato capturado por Clerk al registrarse.
+  const telefono = user?.primaryPhoneNumber?.phoneNumber || "";
 
   useEffect(() => {
     if (!email) return;
@@ -211,13 +212,13 @@ function AppContenido() {
         setServiciosActivos(activos);
         const ofreceSrv = activos.find(s => s.tipo === "ofrece");
         const necesitaSrv = activos.find(s => s.tipo === "necesita");
+        // Ya no se prellenan los campos del formulario (ofrece/necesita quedan vacíos al entrar).
+        // La búsqueda automática en segundo plano sigue usando los servicios activos guardados.
         if (ofreceSrv && necesitaSrv) {
-          setOfrece(ofreceSrv.nombre);
-          setNecesita(necesitaSrv.nombre);
           const respuesta = await fetch(`${API}/buscar-red`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, ofrece: ofreceSrv.nombre, necesita: necesitaSrv.nombre, telefono: "", foto, nombre }),
+            body: JSON.stringify({ email, ofrece: ofreceSrv.nombre, necesita: necesitaSrv.nombre, telefono, foto, nombre }),
           });
           const datos2 = await respuesta.json();
           if (datos2.encontrada) {
@@ -307,10 +308,6 @@ function AppContenido() {
       <div className="card">
         <h2>Que ofreces a cambio?</h2>
         <input type="text" placeholder="Ej: Barberia, Diseno..." value={ofrece} onChange={e => setOfrece(e.target.value)} />
-      </div>
-      <div className="card">
-        <h2>Tu telefono (opcional)</h2>
-        <input type="text" placeholder="Ej: +57 300 123 4567" value={telefono} onChange={e => setTelefono(e.target.value)} />
       </div>
       <button className="btn-primary" onClick={buscarRed} disabled={cargando}>
         {cargando ? "Buscando..." : "Buscar red de trueque"}
