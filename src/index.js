@@ -4,6 +4,7 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { ClerkProvider } from '@clerk/clerk-react';
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 
 const publishableKey = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY;
 
@@ -15,5 +16,5 @@ root.render(
     </ClerkProvider>
   </React.StrictMode>
 );
-
+serviceWorkerRegistration.register();
 reportWebVitals();

@@ -183,6 +183,18 @@ function PanelControl({ email, onVolver }) {
   );
 }
 
+// Convierte la llave VAPID pública (base64) al formato binario que pide el navegador
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 // Genera una "firma" única por red para poder comparar si ya la habíamos visto antes
 function firmaRed(r) {
   return `${r.necesita}::${r.red.map(p => p.email).sort().join(",")}`;
@@ -223,6 +235,9 @@ function AppContenido() {
   const [serviciosActivos, setServiciosActivos] = useState(null);
   const [buscandoAuto, setBuscandoAuto] = useState(false);
   const [redesNuevas, setRedesNuevas] = useState(0);
+  const [permisoNotif, setPermisoNotif] = useState(
+    typeof Notification !== "undefined" ? Notification.permission : "unsupported"
+  );
 
   // --- Opción B: teléfono manejado por nuestra propia app ---
   const [telefono, setTelefono] = useState("");
@@ -277,6 +292,50 @@ function AppContenido() {
       setBuscandoAuto(false);
     };
     cargarTodo();
+  }, [email]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const activarNotificaciones = async () => {
+    try {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        alert("Tu navegador no soporta notificaciones push.");
+        return;
+      }
+      const permiso = await Notification.requestPermission();
+      setPermisoNotif(permiso);
+      if (permiso !== "granted") return;
+
+      const resKey = await fetch(`${API}/vapid-public-key`);
+      const { publicKey } = await resKey.json();
+      if (!publicKey) {
+        console.error("El backend no tiene configurada la llave VAPID publica");
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      let suscripcion = await registration.pushManager.getSubscription();
+      if (!suscripcion) {
+        suscripcion = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey)
+        });
+      }
+
+      await fetch(`${API}/push-subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, subscription: suscripcion })
+      });
+    } catch (err) {
+      console.error("Error activando notificaciones:", err);
+    }
+  };
+
+  // Si el usuario ya había dado permiso antes, se re-suscribe silenciosamente
+  // (por si el navegador rotó el token) sin volver a preguntar.
+  useEffect(() => {
+    if (email && permisoNotif === "granted") {
+      activarNotificaciones();
+    }
   }, [email]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const guardarTelefono = async () => {
@@ -364,6 +423,21 @@ function AppContenido() {
           </div>
         </div>
       </div>
+
+      {permisoNotif === "default" && (
+        <div className="card" style={{ textAlign: "center", background: "#eef4ff", border: "1px solid #0f346033" }}>
+          <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "#444" }}>
+            🔔 Activa las notificaciones para enterarte al instante cuando se forme una red, aunque tengas la app cerrada.
+          </p>
+          <button
+            className="btn-primary"
+            onClick={activarNotificaciones}
+            style={{ fontSize: "0.85rem", padding: "8px 16px" }}
+          >
+            Activar notificaciones
+          </button>
+        </div>
+      )}
 
       {pidiendoTelefono && (
         <div className="card" style={{ border: "1px solid #f5a62355", background: "#fff8e6" }}>
