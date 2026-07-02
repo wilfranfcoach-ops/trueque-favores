@@ -183,6 +183,34 @@ function PanelControl({ email, onVolver }) {
   );
 }
 
+// Genera una "firma" única por red para poder comparar si ya la habíamos visto antes
+function firmaRed(r) {
+  return `${r.necesita}::${r.red.map(p => p.email).sort().join(",")}`;
+}
+
+// Compara las redes actuales contra las que ya vimos (guardadas en este dispositivo),
+// actualiza el badge del ícono de la PWA (como el punto de WhatsApp) y devuelve cuántas son nuevas.
+function actualizarBadge(redesActuales, emailUsuario) {
+  try {
+    const key = `redes_vistas_${emailUsuario}`;
+    const vistasPrevias = JSON.parse(localStorage.getItem(key) || "[]");
+    const firmasActuales = redesActuales.map(firmaRed);
+    const nuevas = firmasActuales.filter(f => !vistasPrevias.includes(f));
+
+    if (nuevas.length > 0 && "setAppBadge" in navigator) {
+      navigator.setAppBadge(nuevas.length).catch(() => {});
+    } else if ("clearAppBadge" in navigator) {
+      navigator.clearAppBadge().catch(() => {});
+    }
+
+    localStorage.setItem(key, JSON.stringify(firmasActuales));
+    return nuevas.length;
+  } catch (err) {
+    console.error(err);
+    return 0;
+  }
+}
+
 function AppContenido() {
   const { user } = useUser();
   const [ofrece, setOfrece] = useState("");
@@ -194,6 +222,7 @@ function AppContenido() {
   const [confeti, setConfeti] = useState(false);
   const [serviciosActivos, setServiciosActivos] = useState(null);
   const [buscandoAuto, setBuscandoAuto] = useState(false);
+  const [redesNuevas, setRedesNuevas] = useState(0);
 
   // --- Opción B: teléfono manejado por nuestra propia app ---
   const [telefono, setTelefono] = useState("");
@@ -232,8 +261,12 @@ function AppContenido() {
           const datosRedes = await resRedes.json();
           if (datosRedes.redes && datosRedes.redes.length > 0) {
             setRedes(datosRedes.redes);
-            setConfeti(true);
-            setTimeout(() => setConfeti(false), 4000);
+            const nuevas = actualizarBadge(datosRedes.redes, email);
+            setRedesNuevas(nuevas);
+            if (nuevas > 0) {
+              setConfeti(true);
+              setTimeout(() => setConfeti(false), 4000);
+            }
           } else {
             setMensaje("Tus servicios están activos. Aún no hay red disponible.");
           }
@@ -283,6 +316,8 @@ function AppContenido() {
       const datos = await respuesta.json();
       if (datos.redes && datos.redes.length > 0) {
         setRedes(datos.redes);
+        const nuevas = actualizarBadge(datos.redes, email);
+        setRedesNuevas(nuevas);
         setConfeti(true);
         setTimeout(() => setConfeti(false), 4000);
       } else {
@@ -308,11 +343,25 @@ function AppContenido() {
         {foto && <img src={foto} alt="perfil" style={{ width: 56, height: 56, borderRadius: "50%", marginBottom: 8, objectFit: "cover" }} />}
         <p>Hola, <strong>{nombre || email}</strong></p>
         <p style={{ fontSize: "0.85rem", color: "#666" }}>{email}</p>
-        <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 8 }}>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, marginTop: 8 }}>
           <UserButton />
           <button onClick={() => setVista("panel")} style={{ fontSize: "0.8rem", padding: "4px 12px", borderRadius: 8, border: "1px solid #ccc", cursor: "pointer", background: "white" }}>
             Mis servicios
           </button>
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <span style={{ fontSize: "1.3rem" }}>🔔</span>
+            {redesNuevas > 0 && (
+              <span style={{
+                position: "absolute", top: -6, right: -6,
+                background: "#e94560", color: "white", borderRadius: "50%",
+                width: 18, height: 18, fontSize: "0.7rem", fontWeight: "bold",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                border: "2px solid white"
+              }}>
+                {redesNuevas}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
