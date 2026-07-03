@@ -245,9 +245,20 @@ function AppContenido() {
   const [pidiendoTelefono, setPidiendoTelefono] = useState(false);
   const [guardandoTelefono, setGuardandoTelefono] = useState(false);
 
+  // --- Minilibro de filosofia Trueque (se muestra 1 sola vez, al primer ingreso) ---
+  const [mostrarMinilibro, setMostrarMinilibro] = useState(false);
+
   const email = user?.primaryEmailAddress?.emailAddress || "";
   const foto = user?.imageUrl || "";
   const nombre = user?.firstName || "";
+
+  useEffect(() => {
+    if (!email) return;
+    const yaVisto = localStorage.getItem(`minilibro_visto_${email}`);
+    if (!yaVisto) {
+      setMostrarMinilibro(true);
+    }
+  }, [email]);
 
   useEffect(() => {
     if (!email) return;
@@ -293,6 +304,11 @@ function AppContenido() {
     };
     cargarTodo();
   }, [email]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const cerrarMinilibro = () => {
+    localStorage.setItem(`minilibro_visto_${email}`, "1");
+    setMostrarMinilibro(false);
+  };
 
   const activarNotificaciones = async () => {
     try {
@@ -398,6 +414,37 @@ function AppContenido() {
   return (
     <main className="main">
       {confeti && <Confeti />}
+
+      {mostrarMinilibro && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+          background: "rgba(15, 52, 96, 0.85)", zIndex: 1000,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 16
+        }}>
+          <div style={{
+            background: "white", borderRadius: 16, maxWidth: 480, width: "100%",
+            maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden"
+          }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #eee" }}>
+              <h2 style={{ margin: 0 }}>📖 Bienvenido a Trueque de Favores</h2>
+              <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "#666" }}>
+                Antes de empezar, conoce nuestra filosofía y cómo funciona la comunidad.
+              </p>
+            </div>
+            <iframe
+              src="/minilibro-trueque.pdf"
+              title="Minilibro Trueque de Favores"
+              style={{ flex: 1, width: "100%", border: "none", minHeight: 400 }}
+            />
+            <div style={{ padding: 16, borderTop: "1px solid #eee", textAlign: "center" }}>
+              <button className="btn-primary" onClick={cerrarMinilibro}>
+                Entendido, continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="card" style={{ textAlign: "center" }}>
         {foto && <img src={foto} alt="perfil" style={{ width: 56, height: 56, borderRadius: "50%", marginBottom: 8, objectFit: "cover" }} />}
         <p>Hola, <strong>{nombre || email}</strong></p>
