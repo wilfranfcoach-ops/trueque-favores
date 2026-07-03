@@ -354,6 +354,61 @@ function AppContenido() {
     }
   }, [email]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const pagarRed = (r) => {
+    (async () => {
+      try {
+        const res = await fetch(`${API}/crear-pago-red`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, firma: r.firma, necesita: r.necesita })
+        });
+        const datos = await res.json();
+        if (!datos.reference) {
+          alert("No se pudo iniciar el pago. Intenta de nuevo.");
+          return;
+        }
+        if (!window.WidgetCheckout) {
+          alert("El widget de pagos no cargó. Recarga la página e intenta de nuevo.");
+          return;
+        }
+        const checkout = new window.WidgetCheckout({
+          currency: datos.currency,
+          amountInCents: datos.amountInCents,
+          reference: datos.reference,
+          publicKey: datos.publicKey,
+          signature: { integrity: datos.signature },
+          redirectUrl: window.location.origin + "/"
+        });
+        checkout.open(async (result) => {
+          const transaccion = result?.transaction;
+          if (transaccion?.id) {
+            await confirmarPago(transaccion.id);
+          }
+        });
+      } catch (err) {
+        console.error("Error iniciando pago:", err);
+      }
+    })();
+  };
+
+  const confirmarPago = async (transactionId) => {
+    try {
+      const res = await fetch(`${API}/confirmar-pago/${transactionId}`);
+      const datos = await res.json();
+      if (datos.estado === "pagado") {
+        const resRedes = await fetch(`${API}/mis-redes/${encodeURIComponent(email)}`);
+        const datosRedes = await resRedes.json();
+        setRedes(datosRedes.redes || []);
+      } else if (datos.estado === "pendiente") {
+        alert("Tu pago se está procesando. Espera unos segundos y recarga la página para ver los contactos.");
+      } else {
+        alert("El pago no se completó. Puedes intentarlo de nuevo.");
+      }
+    } catch (err) {
+      console.error("Error confirmando pago:", err);
+    }
+  };
+
   const guardarTelefono = async () => {
     if (!telefonoInput.trim()) {
       alert("Por favor ingresa tu teléfono");
@@ -548,6 +603,23 @@ function AppContenido() {
                 Red de {r.red.length} personas
               </p>
               <RedCircular nodos={r.red} />
+              {r.pagado === false && (
+                <div style={{
+                  marginTop: 12, padding: 12, borderRadius: 10,
+                  background: "#fff8e6", border: "1px solid #f5a62355", textAlign: "center"
+                }}>
+                  <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "#444" }}>
+                    🔒 Los contactos de esta red están bloqueados. Desbloquéalos por un pago único.
+                  </p>
+                  <button
+                    className="btn-primary"
+                    onClick={() => pagarRed(r)}
+                    style={{ fontSize: "0.85rem", padding: "8px 16px" }}
+                  >
+                    Desbloquear contactos — ${(r.precio || 5000).toLocaleString("es-CO")} COP
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
