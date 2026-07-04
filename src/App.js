@@ -38,7 +38,7 @@ function Confeti() {
 
 function RedCircular({ nodos, pagado, onTocarNodo }) {
   if (!nodos || nodos.length === 0) return null;
-  const cx = 200, cy = 210, r = 140, rNodo = 42;
+  const cx = 220, cy = 230, r = 155, rNodo = 58;
   const colores = ["#0f3460", "#e94560", "#533483", "#1a7a4a"];
   const total = nodos.length;
   const posiciones = nodos.map((_, i) => {
@@ -46,10 +46,10 @@ function RedCircular({ nodos, pagado, onTocarNodo }) {
     return { x: cx + r * Math.cos(angulo), y: cy + r * Math.sin(angulo) };
   });
   return (
-    <svg viewBox="0 0 400 430" width="100%" style={{ maxWidth: 420 }}>
+    <svg viewBox="0 0 440 470" width="100%" style={{ maxWidth: 460 }}>
       {posiciones.map((pos, i) => {
         const sig = posiciones[(i + 1) % total];
-        return <line key={i} x1={pos.x} y1={pos.y} x2={sig.x} y2={sig.y} stroke="#cbd5e0" strokeWidth="2" strokeDasharray="6 3" />;
+        return <line key={i} x1={pos.x} y1={pos.y} x2={sig.x} y2={sig.y} stroke="#cbd5e0" strokeWidth="2.5" strokeDasharray="7 4" />;
       })}
       {posiciones.map((pos, i) => (
         <g
@@ -57,38 +57,41 @@ function RedCircular({ nodos, pagado, onTocarNodo }) {
           onClick={() => onTocarNodo && onTocarNodo(nodos[i], i)}
           style={{ cursor: onTocarNodo ? "pointer" : "default" }}
         >
-          <circle cx={pos.x} cy={pos.y} r={rNodo + 3} fill="white" stroke={colores[i % colores.length]} strokeWidth="2" opacity="0.3" />
+          <circle cx={pos.x} cy={pos.y} r={rNodo + 4} fill="white" stroke={colores[i % colores.length]} strokeWidth="2.5" opacity="0.3" />
           <circle cx={pos.x} cy={pos.y} r={rNodo} fill={colores[i % colores.length]} />
-          {nodos[i].foto && (
+          {nodos[i].foto ? (
             <>
               <clipPath id={`clip-${i}`}>
-                <circle cx={pos.x} cy={pos.y - 10} r={15} />
+                <circle cx={pos.x} cy={pos.y - 14} r={24} />
               </clipPath>
               <image
                 href={nodos[i].foto}
-                x={pos.x - 15}
-                y={pos.y - 25}
-                width={30}
-                height={30}
+                x={pos.x - 24}
+                y={pos.y - 38}
+                width={48}
+                height={48}
                 clipPath={`url(#clip-${i})`}
               />
             </>
+          ) : (
+            <text x={pos.x} y={pos.y - 4} textAnchor="middle" fontSize="26">🙂</text>
           )}
-          <text x={pos.x} y={pos.y + 12} textAnchor="middle" fill="white" fontSize="8.5" fontWeight="bold">
-            {nodos[i].servicio.length > 12 ? nodos[i].servicio.slice(0, 12) + "..." : nodos[i].servicio}
+          <text x={pos.x} y={pos.y + 24} textAnchor="middle" fill="white" fontSize="11.5" fontWeight="bold">
+            {(nodos[i].nombre || nodos[i].email.split("@")[0]).length > 12
+              ? (nodos[i].nombre || nodos[i].email.split("@")[0]).slice(0, 12) + "…"
+              : (nodos[i].nombre || nodos[i].email.split("@")[0])}
           </text>
-          <text x={pos.x} y={pos.y + 24} textAnchor="middle" fill="white" fontSize="7.5" opacity="0.9">
-            {nodos[i].nombre || nodos[i].email.split("@")[0]}
-          </text>
-          {i !== 0 && (
-            <text x={pos.x} y={pos.y + 35} textAnchor="middle" fill="white" fontSize="7" opacity="0.85">
-              {pagado ? "👉 toca para ver contacto" : "🔒 toca para pagar"}
+          {i === 0 ? (
+            <text x={pos.x} y={pos.y + 37} textAnchor="middle" fill="white" fontSize="8" opacity="0.85">(tú)</text>
+          ) : (
+            <text x={pos.x} y={pos.y + 37} textAnchor="middle" fill="white" fontSize="8" opacity="0.9">
+              {pagado ? "👉 ver contacto" : "🔒 pagar"}
             </text>
           )}
         </g>
       ))}
-      <text x={cx} y={cy} textAnchor="middle" fontSize="28">🔄</text>
-      <text x={cx} y={cy + 20} textAnchor="middle" fontSize="10" fill="#666">red cerrada</text>
+      <text x={cx} y={cy} textAnchor="middle" fontSize="30">🔄</text>
+      <text x={cx} y={cy + 22} textAnchor="middle" fontSize="10" fill="#666">red cerrada</text>
     </svg>
   );
 }
