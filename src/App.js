@@ -36,7 +36,7 @@ function Confeti() {
   );
 }
 
-function RedCircular({ nodos }) {
+function RedCircular({ nodos, pagado, onTocarNodo }) {
   if (!nodos || nodos.length === 0) return null;
   const cx = 200, cy = 210, r = 140, rNodo = 42;
   const colores = ["#0f3460", "#e94560", "#533483", "#1a7a4a"];
@@ -52,36 +52,39 @@ function RedCircular({ nodos }) {
         return <line key={i} x1={pos.x} y1={pos.y} x2={sig.x} y2={sig.y} stroke="#cbd5e0" strokeWidth="2" strokeDasharray="6 3" />;
       })}
       {posiciones.map((pos, i) => (
-        <g key={i}>
+        <g
+          key={i}
+          onClick={() => onTocarNodo && onTocarNodo(nodos[i], i)}
+          style={{ cursor: onTocarNodo ? "pointer" : "default" }}
+        >
           <circle cx={pos.x} cy={pos.y} r={rNodo + 3} fill="white" stroke={colores[i % colores.length]} strokeWidth="2" opacity="0.3" />
           <circle cx={pos.x} cy={pos.y} r={rNodo} fill={colores[i % colores.length]} />
           {nodos[i].foto && (
             <>
               <clipPath id={`clip-${i}`}>
-                <circle cx={pos.x} cy={pos.y - 14} r={13} />
+                <circle cx={pos.x} cy={pos.y - 10} r={15} />
               </clipPath>
               <image
                 href={nodos[i].foto}
-                x={pos.x - 13}
-                y={pos.y - 27}
-                width={26}
-                height={26}
+                x={pos.x - 15}
+                y={pos.y - 25}
+                width={30}
+                height={30}
                 clipPath={`url(#clip-${i})`}
               />
             </>
           )}
-          <text x={pos.x} y={pos.y + 4} textAnchor="middle" fill="white" fontSize="8.5" fontWeight="bold">
+          <text x={pos.x} y={pos.y + 12} textAnchor="middle" fill="white" fontSize="8.5" fontWeight="bold">
             {nodos[i].servicio.length > 12 ? nodos[i].servicio.slice(0, 12) + "..." : nodos[i].servicio}
           </text>
-          <text x={pos.x} y={pos.y + 16} textAnchor="middle" fill="white" fontSize="7.5" opacity="0.9">
+          <text x={pos.x} y={pos.y + 24} textAnchor="middle" fill="white" fontSize="7.5" opacity="0.9">
             {nodos[i].nombre || nodos[i].email.split("@")[0]}
           </text>
-          <text x={pos.x} y={pos.y + 27} textAnchor="middle" fill="white" fontSize="7" opacity="0.7">
-            {"@" + nodos[i].email.split("@")[1]}
-          </text>
-          <text x={pos.x} y={pos.y + 38} textAnchor="middle" fill="white" fontSize="7.5" opacity="0.9">
-            {nodos[i].telefono || ""}
-          </text>
+          {i !== 0 && (
+            <text x={pos.x} y={pos.y + 35} textAnchor="middle" fill="white" fontSize="7" opacity="0.85">
+              {pagado ? "👉 toca para ver contacto" : "🔒 toca para pagar"}
+            </text>
+          )}
         </g>
       ))}
       <text x={cx} y={cy} textAnchor="middle" fontSize="28">🔄</text>
@@ -235,6 +238,7 @@ function AppContenido() {
   const [serviciosActivos, setServiciosActivos] = useState(null);
   const [buscandoAuto, setBuscandoAuto] = useState(false);
   const [redesNuevas, setRedesNuevas] = useState(0);
+  const [contactoActivo, setContactoActivo] = useState(null);
   const [permisoNotif, setPermisoNotif] = useState(
     typeof Notification !== "undefined" ? Notification.permission : "unsupported"
   );
@@ -354,6 +358,15 @@ function AppContenido() {
     }
   }, [email]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleTocarNodo = (r, nodo, indice) => {
+    if (indice === 0) return; // es el propio usuario
+    if (r.pagado) {
+      setContactoActivo(nodo);
+    } else {
+      pagarRed(r);
+    }
+  };
+
   const pagarRed = (r) => {
     (async () => {
       try {
@@ -470,6 +483,36 @@ function AppContenido() {
     <main className="main">
       {confeti && <Confeti />}
 
+      {contactoActivo && (
+        <div
+          onClick={() => setContactoActivo(null)}
+          style={{
+            position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+            background: "rgba(15, 52, 96, 0.6)", zIndex: 1001,
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 16
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="card"
+            style={{ maxWidth: 320, width: "100%", textAlign: "center" }}
+          >
+            {contactoActivo.foto && (
+              <img
+                src={contactoActivo.foto}
+                alt={contactoActivo.nombre}
+                style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", marginBottom: 8 }}
+              />
+            )}
+            <h3 style={{ margin: "4px 0" }}>{contactoActivo.nombre || contactoActivo.email.split("@")[0]}</h3>
+            <p style={{ margin: "2px 0", fontSize: "0.85rem", color: "#666" }}>Ofrece: {contactoActivo.servicio}</p>
+            <p style={{ margin: "10px 0 2px", fontSize: "0.95rem" }}>📞 {contactoActivo.telefono || "No registrado"}</p>
+            <p style={{ margin: "2px 0 12px", fontSize: "0.95rem" }}>✉️ {contactoActivo.email}</p>
+            <button className="btn-primary" onClick={() => setContactoActivo(null)}>Cerrar</button>
+          </div>
+        </div>
+      )}
+
       {mostrarMinilibro && (
         <div style={{
           position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
@@ -480,18 +523,30 @@ function AppContenido() {
             background: "white", borderRadius: 16, maxWidth: 480, width: "100%",
             maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden"
           }}>
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid #eee" }}>
-              <h2 style={{ margin: 0 }}>📖 Bienvenido a Trueque de Favores</h2>
-              <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "#666" }}>
-                Antes de empezar, conoce nuestra filosofía y cómo funciona la comunidad.
-              </p>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <h2 style={{ margin: 0 }}>📖 Bienvenido a Trueque de Favores</h2>
+                <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "#666" }}>
+                  Antes de empezar, conoce nuestra filosofía y cómo funciona la comunidad.
+                </p>
+              </div>
+              <button
+                onClick={cerrarMinilibro}
+                aria-label="Cerrar"
+                style={{ background: "none", border: "none", fontSize: "1.4rem", cursor: "pointer", color: "#999", lineHeight: 1, padding: 4 }}
+              >
+                ✕
+              </button>
             </div>
             <iframe
               src="/minilibro-trueque.pdf"
               title="Minilibro Trueque de Favores"
               style={{ flex: 1, width: "100%", border: "none", minHeight: 400 }}
             />
-            <div style={{ padding: 16, borderTop: "1px solid #eee", textAlign: "center" }}>
+            <div style={{ padding: 16, borderTop: "1px solid #eee", textAlign: "center", background: "#f7f9fc" }}>
+              <p style={{ margin: "0 0 8px", fontSize: "0.8rem", color: "#666" }}>
+                Toca el botón para volver a la app (esta ventana no se muestra de nuevo).
+              </p>
               <button className="btn-primary" onClick={cerrarMinilibro}>
                 Entendido, continuar
               </button>
@@ -602,7 +657,11 @@ function AppContenido() {
               <p style={{ margin: "4px 0 12px", fontSize: "0.85rem", color: "#666" }}>
                 Red de {r.red.length} personas
               </p>
-              <RedCircular nodos={r.red} />
+              <RedCircular
+                nodos={r.red}
+                pagado={r.pagado}
+                onTocarNodo={(nodo, idx) => handleTocarNodo(r, nodo, idx)}
+              />
               {r.pagado === false && (
                 <div style={{
                   marginTop: 12, padding: 12, borderRadius: 10,
