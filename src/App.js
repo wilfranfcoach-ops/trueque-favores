@@ -568,6 +568,10 @@ function AppContenido() {
   };
 
   const buscarRed = async () => {
+    if (politicaAceptada === false) {
+      setMostrarPolitica(true);
+      return;
+    }
     if (!ofrece || !necesita) {
       alert("Por favor completa todos los campos");
       return;
