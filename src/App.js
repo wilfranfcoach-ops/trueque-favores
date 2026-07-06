@@ -4,6 +4,43 @@ import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/c
 
 const API = "https://trueque-favores-production.up.railway.app";
 
+const FRASES_MOTIVADORAS = [
+  "Hoy alguien necesita exactamente lo que tú sabes hacer.",
+  "No mides tu talento en pesos. Lo mides en el tiempo que estás dispuesto a dar.",
+  "Servir no te hace menos. Te hace parte de algo más grande.",
+  "La confianza no se compra. Se construye, un intercambio a la vez.",
+  "¿Y si hoy dieras tu tiempo sin pensar en lo que recibes a cambio?",
+  "Un día de tu talento puede cambiar el día de alguien más.",
+  "En Trueque no preguntamos '¿cuánto cuesta?'. Preguntamos '¿cuánto tiempo tienes para dar?'",
+  "Cada red que activas es una historia de dos personas que decidieron confiar."
+];
+
+function FraseMotivadora() {
+  const [indice, setIndice] = useState(() => Math.floor(Math.random() * FRASES_MOTIVADORAS.length));
+
+  useEffect(() => {
+    const intervalo = setInterval(() => {
+      setIndice(i => (i + 1) % FRASES_MOTIVADORAS.length);
+    }, 15000); // cambia cada 15 segundos
+    return () => clearInterval(intervalo);
+  }, []);
+
+  return (
+    <div className="card" style={{
+      textAlign: "center",
+      background: "linear-gradient(135deg, #0f3460 0%, #1a7a4a 100%)",
+      color: "white"
+    }}>
+      <p style={{ margin: 0, fontSize: "0.7rem", opacity: 0.75, letterSpacing: 1, textTransform: "uppercase" }}>
+        Cultura Trueque
+      </p>
+      <p style={{ margin: "6px 0 0", fontSize: "0.95rem", fontStyle: "italic", lineHeight: 1.4 }}>
+        "{FRASES_MOTIVADORAS[indice]}"
+      </p>
+    </div>
+  );
+}
+
 function Confeti() {
   const piezas = Array.from({ length: 60 }, (_, i) => ({
     id: i,
@@ -13,7 +50,7 @@ function Confeti() {
     size: Math.random() * 8 + 6
   }));
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 999 }}>
+    <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 2000 }}>
       {piezas.map(p => (
         <div key={p.id} style={{
           position: "absolute",
@@ -238,7 +275,7 @@ function AppContenido() {
   const [mensaje, setMensaje] = useState("");
   const [vista, setVista] = useState("buscar");
   const [confeti, setConfeti] = useState(false);
-  const [serviciosActivos, setServiciosActivos] = useState(null);
+  const [confetiKey, setConfetiKey] = useState(0);
   const [buscandoAuto, setBuscandoAuto] = useState(false);
   const [redesNuevas, setRedesNuevas] = useState(0);
   const [contactoActivo, setContactoActivo] = useState(null);
@@ -254,6 +291,18 @@ function AppContenido() {
 
   // --- Minilibro de filosofia Trueque (se muestra 1 sola vez, al primer ingreso) ---
   const [mostrarMinilibro, setMostrarMinilibro] = useState(false);
+
+  // --- Política de Uso y Convivencia: debe aceptarse antes de poder usar la app ---
+  const [politicaAceptada, setPoliticaAceptada] = useState(null); // null = aun no se sabe, true/false luego
+  const [mostrarPolitica, setMostrarPolitica] = useState(false);
+  const [checkPolitica, setCheckPolitica] = useState(false);
+  const [guardandoPolitica, setGuardandoPolitica] = useState(false);
+
+  // --- Verificación de identidad (foto de cédula o selfie) para poder activar redes ---
+  const [estadoVerificacion, setEstadoVerificacion] = useState("sin_verificar"); // sin_verificar | pendiente | aprobada | rechazada
+  const [mostrarVerificacion, setMostrarVerificacion] = useState(false);
+  const [archivoVerificacion, setArchivoVerificacion] = useState(null);
+  const [subiendoVerificacion, setSubiendoVerificacion] = useState(false);
 
   const email = user?.primaryEmailAddress?.emailAddress || "";
   const foto = user?.imageUrl || "";
@@ -282,11 +331,16 @@ function AppContenido() {
           setPidiendoTelefono(true);
         }
 
-        // 2. Cargar servicios activos (solo para mostrarlos en pantalla)
+        const aceptoPolitica = !!datosUsuario.usuario?.acepto_politica;
+        setPoliticaAceptada(aceptoPolitica);
+        if (!aceptoPolitica) setMostrarPolitica(true);
+
+        setEstadoVerificacion(datosUsuario.usuario?.verificacion_estado || "sin_verificar");
+
+        // 2. Cargar servicios activos (para saber si vale la pena buscar redes)
         const resServicios = await fetch(`${API}/mis-servicios/${encodeURIComponent(email)}`);
         const datosServicios = await resServicios.json();
         const activos = datosServicios.servicios?.filter(s => s.estado === "activo") || [];
-        setServiciosActivos(activos);
 
         // 3. Buscar TODAS las redes disponibles para cualquiera de mis servicios activos
         if (activos.length > 0) {
@@ -297,8 +351,9 @@ function AppContenido() {
             const nuevas = actualizarBadge(datosRedes.redes, email);
             setRedesNuevas(nuevas);
             if (nuevas > 0) {
+              setConfetiKey(k => k + 1);
               setConfeti(true);
-              setTimeout(() => setConfeti(false), 4000);
+              setTimeout(() => setConfeti(false), 4500);
             }
           } else {
             setMensaje("Tus servicios están activos. Aún no hay red disponible.");
@@ -315,6 +370,51 @@ function AppContenido() {
   const cerrarMinilibro = () => {
     localStorage.setItem(`minilibro_visto_${email}`, "1");
     setMostrarMinilibro(false);
+  };
+
+  const aceptarPolitica = async () => {
+    if (!checkPolitica) return;
+    setGuardandoPolitica(true);
+    try {
+      await fetch(`${API}/aceptar-politica`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      setPoliticaAceptada(true);
+      setMostrarPolitica(false);
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo guardar tu aceptación, intenta de nuevo.");
+    }
+    setGuardandoPolitica(false);
+  };
+
+  const subirVerificacion = async () => {
+    if (!archivoVerificacion) {
+      alert("Selecciona una foto (cédula o selfie) primero.");
+      return;
+    }
+    setSubiendoVerificacion(true);
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const lector = new FileReader();
+        lector.onload = () => resolve(lector.result);
+        lector.onerror = reject;
+        lector.readAsDataURL(archivoVerificacion);
+      });
+      await fetch(`${API}/verificacion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, imagen: base64 })
+      });
+      setEstadoVerificacion("pendiente");
+      setMostrarVerificacion(false);
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo subir la foto, intenta de nuevo.");
+    }
+    setSubiendoVerificacion(false);
   };
 
   const activarNotificaciones = async () => {
@@ -371,6 +471,10 @@ function AppContenido() {
   };
 
   const pagarRed = (r) => {
+    if (estadoVerificacion !== "aprobada") {
+      setMostrarVerificacion(true);
+      return;
+    }
     (async () => {
       try {
         const res = await fetch(`${API}/crear-pago-red`, {
@@ -425,6 +529,23 @@ function AppContenido() {
     }
   };
 
+  const reportarContacto = async (contacto) => {
+    const motivo = window.prompt("¿Qué pasó? (ej: no se presentó, pidió dinero, comportamiento inapropiado)");
+    if (!motivo) return;
+    try {
+      await fetch(`${API}/reportar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailReporta: email, emailReportado: contacto.email, motivo })
+      });
+      alert("Gracias, tu reporte fue enviado y será revisado.");
+      setContactoActivo(null);
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo enviar el reporte, intenta de nuevo.");
+    }
+  };
+
   const guardarTelefono = async () => {
     if (!telefonoInput.trim()) {
       alert("Por favor ingresa tu teléfono");
@@ -464,8 +585,9 @@ function AppContenido() {
         setRedes(datos.redes);
         const nuevas = actualizarBadge(datos.redes, email);
         setRedesNuevas(nuevas);
+        setConfetiKey(k => k + 1);
         setConfeti(true);
-        setTimeout(() => setConfeti(false), 4000);
+        setTimeout(() => setConfeti(false), 4500);
       } else {
         setRedes([]);
         setMensaje("No se encontro red por ahora. Tu perfil fue guardado.");
@@ -484,7 +606,7 @@ function AppContenido() {
 
   return (
     <main className="main">
-      {confeti && <Confeti />}
+      {confeti && <Confeti key={confetiKey} />}
 
       {contactoActivo && (
         <div
@@ -512,6 +634,96 @@ function AppContenido() {
             <p style={{ margin: "10px 0 2px", fontSize: "0.95rem" }}>📞 {contactoActivo.telefono || "No registrado"}</p>
             <p style={{ margin: "2px 0 12px", fontSize: "0.95rem" }}>✉️ {contactoActivo.email}</p>
             <button className="btn-primary" onClick={() => setContactoActivo(null)}>Cerrar</button>
+            <button
+              onClick={() => reportarContacto(contactoActivo)}
+              style={{ marginTop: 8, background: "none", border: "none", color: "#e94560", fontSize: "0.8rem", cursor: "pointer", width: "100%" }}
+            >
+              🚩 Reportar a esta persona
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!mostrarMinilibro && mostrarPolitica && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+          background: "rgba(15, 52, 96, 0.9)", zIndex: 1000,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 16
+        }}>
+          <div style={{
+            background: "white", borderRadius: 16, maxWidth: 480, width: "100%",
+            maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden"
+          }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #eee" }}>
+              <h2 style={{ margin: 0 }}>📋 Política de Uso y Convivencia</h2>
+              <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "#666" }}>
+                Debes leer y aceptar esto antes de usar Trueque.
+              </p>
+            </div>
+            <div style={{ padding: "16px 20px", overflowY: "auto", fontSize: "0.85rem", color: "#333", lineHeight: 1.5 }}>
+              <p><strong>1. Altruismo.</strong> Los servicios que ofrezco serán prestados de forma consciente, voluntaria y desinteresada.</p>
+              <p><strong>2. Coordinación de red.</strong> Cuando se me notifique que hago parte de una red, contactaré tanto a mi llave sucesora como a mi llave predecesora para coordinar el servicio.</p>
+              <p><strong>3. Rol de la plataforma.</strong> Entiendo que Trueque solo facilita la conexión entre las partes y no se hace responsable por la prestación de los servicios.</p>
+              <p><strong>4. Referencia de tiempo, no de dinero.</strong> Los servicios se intercambian por tiempo dedicado, sin comparar precios ni costos. No usaré palabras como dinero, precio, plata o costo dentro de la plataforma.</p>
+              <p><strong>5. Exclusividad de servicios.</strong> No usaré Trueque para ofrecer, solicitar o mediar la venta de productos, bienes materiales, ni transacciones de dinero distintas al pago simbólico de activación de red.</p>
+              <p><strong>6. Edad mínima.</strong> Confirmo que soy mayor de 18 años.</p>
+              <p><strong>7. Verificación.</strong> Entiendo que para activar una red puede pedírseme una foto de verificación de identidad, y que mi cuenta puede ser suspendida si mis datos no son reales.</p>
+              <p><strong>8. Calificación y reportes.</strong> Después de cada servicio calificaré la experiencia. Puedo reportar a cualquier persona que incumpla, y entiendo que mi cuenta puede ser suspendida si acumulo reportes válidos o incumplimientos.</p>
+              <p><strong>9. Uso indebido de contactos.</strong> No usaré los datos de contacto compartidos por Trueque para fines distintos al servicio coordinado. Hacerlo es causal de expulsión inmediata.</p>
+              <p><strong>10. Responsabilidad del servicio.</strong> Después de prestar un servicio, seré responsable de eliminarlo de la app para evitar redes repetidas.</p>
+            </div>
+            <div style={{ padding: 16, borderTop: "1px solid #eee", background: "#f7f9fc" }}>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: "0.85rem", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={checkPolitica}
+                  onChange={e => setCheckPolitica(e.target.checked)}
+                  style={{ marginTop: 3 }}
+                />
+                He leído y acepto los Compromisos y la Política de Uso y Convivencia de Trueque.
+              </label>
+              <button
+                className="btn-primary"
+                onClick={aceptarPolitica}
+                disabled={!checkPolitica || guardandoPolitica}
+                style={{ marginTop: 12, width: "100%" }}
+              >
+                {guardandoPolitica ? "Guardando..." : "Aceptar y continuar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mostrarVerificacion && (
+        <div
+          onClick={() => setMostrarVerificacion(false)}
+          style={{
+            position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+            background: "rgba(15, 52, 96, 0.7)", zIndex: 1002,
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 16
+          }}
+        >
+          <div onClick={e => e.stopPropagation()} className="card" style={{ maxWidth: 340, width: "100%" }}>
+            <h3 style={{ marginTop: 0 }}>🪪 Verifica tu identidad</h3>
+            {estadoVerificacion === "pendiente" ? (
+              <p style={{ fontSize: "0.85rem", color: "#666" }}>
+                Tu foto ya fue enviada y está en revisión. Te avisaremos cuando esté aprobada para poder activar redes.
+              </p>
+            ) : (
+              <>
+                <p style={{ fontSize: "0.85rem", color: "#666" }}>
+                  Para activar una red necesitamos confirmar que eres una persona real. Sube una foto de tu cédula o una selfie clara.
+                </p>
+                <input type="file" accept="image/*" onChange={e => setArchivoVerificacion(e.target.files?.[0] || null)} />
+                <button className="btn-primary" onClick={subirVerificacion} disabled={subiendoVerificacion} style={{ marginTop: 10 }}>
+                  {subiendoVerificacion ? "Subiendo..." : "Enviar para verificación"}
+                </button>
+              </>
+            )}
+            <button onClick={() => setMostrarVerificacion(false)} style={{ marginTop: 8, background: "none", border: "none", color: "#888", cursor: "pointer", width: "100%" }}>
+              Cerrar
+            </button>
           </div>
         </div>
       )}
@@ -599,6 +811,24 @@ function AppContenido() {
         </div>
       )}
 
+      {estadoVerificacion === "pendiente" && (
+        <div className="card" style={{ textAlign: "center", background: "#fff8e6", border: "1px solid #f5a62355" }}>
+          <p style={{ margin: 0, fontSize: "0.85rem", color: "#444" }}>
+            🪪 Tu verificación de identidad está en revisión. Te avisaremos cuando puedas activar redes.
+          </p>
+        </div>
+      )}
+      {estadoVerificacion === "rechazada" && (
+        <div className="card" style={{ textAlign: "center", background: "#fdecec", border: "1px solid #e9456055" }}>
+          <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "#444" }}>
+            🪪 Tu verificación no fue aprobada. Vuelve a intentarlo con una foto más clara.
+          </p>
+          <button className="btn-primary" onClick={() => setMostrarVerificacion(true)} style={{ fontSize: "0.8rem", padding: "6px 14px" }}>
+            Volver a subir foto
+          </button>
+        </div>
+      )}
+
       {pidiendoTelefono && (
         <div className="card" style={{ border: "1px solid #f5a62355", background: "#fff8e6" }}>
           <h2>Completa tu perfil</h2>
@@ -626,18 +856,7 @@ function AppContenido() {
         <p style={{ textAlign: "center", color: "#666" }}>🔍 Buscando redes con tus servicios activos...</p>
       )}
 
-      {serviciosActivos && serviciosActivos.length > 0 && !buscandoAuto && (
-        <div className="card" style={{ background: "#f0fdf4", border: "1px solid #1a7a4a33" }}>
-          <p style={{ margin: 0, fontSize: "0.85rem", color: "#1a7a4a", fontWeight: "bold" }}>
-            ✅ Servicios activos encontrados
-          </p>
-          {serviciosActivos.map(s => (
-            <p key={s.id} style={{ margin: "4px 0", fontSize: "0.8rem", color: "#444", textTransform: "capitalize" }}>
-              • {s.tipo}: {s.nombre}
-            </p>
-          ))}
-        </div>
-      )}
+      <FraseMotivadora />
 
       <div className="card">
         <h2>Que necesitas?</h2>
