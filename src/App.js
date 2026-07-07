@@ -279,6 +279,12 @@ function AppContenido() {
   const [buscandoAuto, setBuscandoAuto] = useState(false);
   const [redesNuevas, setRedesNuevas] = useState(0);
   const [contactoActivo, setContactoActivo] = useState(null);
+  const [reputacionContacto, setReputacionContacto] = useState(null);
+  const [mostrarFormCalificacion, setMostrarFormCalificacion] = useState(false);
+  const [estrellasForm, setEstrellasForm] = useState(0);
+  const [comentarioForm, setComentarioForm] = useState("");
+  const [enviandoCalificacion, setEnviandoCalificacion] = useState(false);
+  const [yaCalifico, setYaCalifico] = useState(false);
   const [permisoNotif, setPermisoNotif] = useState(
     typeof Notification !== "undefined" ? Notification.permission : "unsupported"
   );
@@ -529,6 +535,52 @@ function AppContenido() {
     }
   };
 
+  useEffect(() => {
+    if (!contactoActivo?.email) {
+      setReputacionContacto(null);
+      return;
+    }
+    setMostrarFormCalificacion(false);
+    setEstrellasForm(0);
+    setComentarioForm("");
+    setYaCalifico(false);
+    (async () => {
+      try {
+        const res = await fetch(`${API}/reputacion/${encodeURIComponent(contactoActivo.email)}`);
+        const datos = await res.json();
+        setReputacionContacto(datos);
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+  }, [contactoActivo]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const enviarCalificacion = async () => {
+    if (!estrellasForm) {
+      alert("Selecciona de 1 a 5 estrellas");
+      return;
+    }
+    setEnviandoCalificacion(true);
+    try {
+      await fetch(`${API}/calificar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          emailCalifica: email,
+          emailCalificado: contactoActivo.email,
+          estrellas: estrellasForm,
+          comentario: comentarioForm || null
+        })
+      });
+      setYaCalifico(true);
+      setMostrarFormCalificacion(false);
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo enviar la calificación, intenta de nuevo.");
+    }
+    setEnviandoCalificacion(false);
+  };
+
   const reportarContacto = async (contacto) => {
     const motivo = window.prompt("¿Qué pasó? (ej: no se presentó, pidió dinero, comportamiento inapropiado)");
     if (!motivo) return;
@@ -637,7 +689,61 @@ function AppContenido() {
             <p style={{ margin: "2px 0", fontSize: "0.85rem", color: "#666" }}>Ofrece: {contactoActivo.servicio}</p>
             <p style={{ margin: "10px 0 2px", fontSize: "0.95rem" }}>📞 {contactoActivo.telefono || "No registrado"}</p>
             <p style={{ margin: "2px 0 12px", fontSize: "0.95rem" }}>✉️ {contactoActivo.email}</p>
+
+            {reputacionContacto && reputacionContacto.total > 0 ? (
+              <p style={{ margin: "0 0 10px", fontSize: "0.85rem", color: "#666" }}>
+                ⭐ {reputacionContacto.promedio.toFixed(1)} ({reputacionContacto.total} {reputacionContacto.total === 1 ? "calificación" : "calificaciones"})
+              </p>
+            ) : (
+              <p style={{ margin: "0 0 10px", fontSize: "0.8rem", color: "#999" }}>
+                Aún sin calificaciones
+              </p>
+            )}
+
             <button className="btn-primary" onClick={() => setContactoActivo(null)}>Cerrar</button>
+
+            {yaCalifico ? (
+              <p style={{ marginTop: 10, fontSize: "0.85rem", color: "#1a7a4a" }}>
+                ✅ ¡Gracias por calificar!
+              </p>
+            ) : mostrarFormCalificacion ? (
+              <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: "#f7f9fc", border: "1px solid #eee" }}>
+                <p style={{ margin: "0 0 8px", fontSize: "0.85rem", fontWeight: "bold" }}>¿Cómo estuvo el servicio?</p>
+                <div style={{ display: "flex", justifyContent: "center", gap: 4, marginBottom: 8 }}>
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <span
+                      key={n}
+                      onClick={() => setEstrellasForm(n)}
+                      style={{ fontSize: "1.6rem", cursor: "pointer", opacity: n <= estrellasForm ? 1 : 0.3 }}
+                    >
+                      ⭐
+                    </span>
+                  ))}
+                </div>
+                <textarea
+                  placeholder="Comentario (opcional)"
+                  value={comentarioForm}
+                  onChange={e => setComentarioForm(e.target.value)}
+                  style={{ width: "100%", minHeight: 60, borderRadius: 8, border: "1px solid #ccc", padding: 8, fontSize: "0.85rem", boxSizing: "border-box" }}
+                />
+                <button
+                  className="btn-primary"
+                  onClick={enviarCalificacion}
+                  disabled={enviandoCalificacion}
+                  style={{ marginTop: 8, fontSize: "0.85rem", padding: "8px 16px", width: "100%" }}
+                >
+                  {enviandoCalificacion ? "Enviando..." : "Enviar calificación"}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setMostrarFormCalificacion(true)}
+                style={{ marginTop: 8, background: "none", border: "1px solid #f5a623", color: "#b8790a", fontSize: "0.8rem", cursor: "pointer", width: "100%", padding: "8px 0", borderRadius: 8 }}
+              >
+                ⭐ Calificar a esta persona
+              </button>
+            )}
+
             <button
               onClick={() => reportarContacto(contactoActivo)}
               style={{ marginTop: 8, background: "none", border: "none", color: "#e94560", fontSize: "0.8rem", cursor: "pointer", width: "100%" }}
