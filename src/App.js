@@ -120,9 +120,13 @@ function RedCircular({ nodos, pagado, onTocarNodo }) {
           </text>
           {i === 0 ? (
             <text x={pos.x} y={pos.y + 37} textAnchor="middle" fill="white" fontSize="8" opacity="0.85">(tú)</text>
-          ) : (
+          ) : i === 1 ? (
             <text x={pos.x} y={pos.y + 37} textAnchor="middle" fill="white" fontSize="8" opacity="0.9">
               {pagado ? "👉 ver contacto" : "🔒 pagar"}
+            </text>
+          ) : (
+            <text x={pos.x} y={pos.y + 37} textAnchor="middle" fill="white" fontSize="7" opacity="0.75">
+              no es tu contacto
             </text>
           )}
         </g>
@@ -170,7 +174,8 @@ function PanelControl({ email, onVolver }) {
     activo: "#1a7a4a",
     inactivo: "#888",
     en_red: "#e94560",
-    completado: "#533483"
+    completado: "#533483",
+    ejecutado: "#0f3460"
   };
 
   return (
@@ -200,6 +205,11 @@ function PanelControl({ email, onVolver }) {
               }}>{s.estado}</span>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {(s.estado === "activo" || s.estado === "en_red") && (
+                <button onClick={() => cambiarEstado(s.id, "ejecutado")} style={{ fontSize: "0.75rem", padding: "4px 10px", borderRadius: 6, border: "1px solid #0f3460", cursor: "pointer", background: "white", color: "#0f3460" }}>
+                  ✅ Ya lo presté
+                </button>
+              )}
               {s.estado === "activo" && (
                 <button onClick={() => cambiarEstado(s.id, "inactivo")} style={{ fontSize: "0.75rem", padding: "4px 10px", borderRadius: 6, border: "1px solid #ccc", cursor: "pointer", background: "white" }}>
                   Pausar
@@ -297,6 +307,9 @@ function AppContenido() {
 
   // --- Minilibro de filosofia Trueque (se muestra 1 sola vez, al primer ingreso) ---
   const [mostrarMinilibro, setMostrarMinilibro] = useState(false);
+
+  // --- Instrucciones "Cómo funciona", siempre accesibles desde un botón ---
+  const [mostrarInstrucciones, setMostrarInstrucciones] = useState(false);
 
   // --- Política de Uso y Convivencia: debe aceptarse antes de poder usar la app ---
   const [politicaAceptada, setPoliticaAceptada] = useState(null); // null = aun no se sabe, true/false luego
@@ -469,6 +482,10 @@ function AppContenido() {
 
   const handleTocarNodo = (r, nodo, indice) => {
     if (indice === 0) return; // es el propio usuario
+    if (indice !== 1) {
+      alert("Esta persona no es tu eslabón directo — su contacto se desbloquea para quien sí le presta el servicio a ella. Tú solo activas el contacto de la persona a quien TÚ le vas a prestar tu servicio.");
+      return;
+    }
     if (r.pagado) {
       setContactoActivo(nodo);
     } else {
@@ -838,6 +855,50 @@ function AppContenido() {
         </div>
       )}
 
+      {mostrarInstrucciones && (
+        <div
+          onClick={() => setMostrarInstrucciones(false)}
+          style={{
+            position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+            background: "rgba(15, 52, 96, 0.7)", zIndex: 1003,
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 16
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "white", borderRadius: 16, maxWidth: 460, width: "100%",
+              maxHeight: "85vh", display: "flex", flexDirection: "column", overflow: "hidden"
+            }}
+          >
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <h2 style={{ margin: 0 }}>📋 Cómo funciona Trueque</h2>
+              <button
+                onClick={() => setMostrarInstrucciones(false)}
+                aria-label="Cerrar"
+                style={{ background: "none", border: "none", fontSize: "1.4rem", cursor: "pointer", color: "#999", lineHeight: 1, padding: 4 }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: "16px 20px", overflowY: "auto", fontSize: "0.88rem", color: "#333", lineHeight: 1.5 }}>
+              <p><strong>1. Ingresa tus servicios.</strong> Registra qué necesitas y qué ofreces a cambio.</p>
+              <p><strong>2. Revisa tus redes con frecuencia.</strong> Nuevas cadenas pueden formarse en cualquier momento.</p>
+              <p><strong>3. Cuando te llegue una red, actívala.</strong> Paga tu cuota de $5.000 COP para desbloquear el contacto de la persona a quien le vas a prestar tu servicio.</p>
+              <p><strong>4. Contacta a esa persona.</strong> Coordina los detalles del servicio, y motívala a hacer lo mismo (pagar su cuota y contactar al siguiente) para que la cadena se complete.</p>
+              <p><strong>5. Marca tu servicio como "Ejecutado".</strong> Una vez hayas prestado tu servicio, cambia su estado en "Mis servicios" tocando "✅ Ya lo presté".</p>
+              <p><strong>6. La red se cierra sola.</strong> Cuando todos los servicios de una red están en estado "Ejecutado", se eliminan automáticamente: la red se considera completada.</p>
+              <p><strong>7. Las redes inactivas se limpian solas.</strong> Las redes con más de 30 días sin ningún movimiento se eliminan automáticamente, para mantener la comunidad activa y confiable.</p>
+            </div>
+            <div style={{ padding: 16, borderTop: "1px solid #eee", textAlign: "center", background: "#f7f9fc" }}>
+              <button className="btn-primary" onClick={() => setMostrarInstrucciones(false)}>
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {mostrarMinilibro && (
         <div style={{
           position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
@@ -888,6 +949,9 @@ function AppContenido() {
           <UserButton />
           <button onClick={() => setVista("panel")} style={{ fontSize: "0.8rem", padding: "4px 12px", borderRadius: 8, border: "1px solid #ccc", cursor: "pointer", background: "white" }}>
             Mis servicios
+          </button>
+          <button onClick={() => setMostrarInstrucciones(true)} style={{ fontSize: "0.8rem", padding: "4px 12px", borderRadius: 8, border: "1px solid #ccc", cursor: "pointer", background: "white" }}>
+            ❓ Cómo funciona
           </button>
           <div style={{ position: "relative", display: "inline-block" }}>
             <span style={{ fontSize: "1.3rem" }}>🔔</span>
@@ -1000,14 +1064,14 @@ function AppContenido() {
                   background: "#fff8e6", border: "1px solid #f5a62355", textAlign: "center"
                 }}>
                   <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "#444" }}>
-                    🔒 Los contactos de esta red están bloqueados. Desbloquéalos por un pago único.
+                    🔒 Activa tu eslabón de esta red — desbloquea el contacto de la persona a quien le vas a prestar tu servicio.
                   </p>
                   <button
                     className="btn-primary"
                     onClick={() => pagarRed(r)}
                     style={{ fontSize: "0.85rem", padding: "8px 16px" }}
                   >
-                    Desbloquear contactos — ${(r.precio || 5000).toLocaleString("es-CO")} COP
+                    Activar mi eslabón — ${(r.precio || 5000).toLocaleString("es-CO")} COP
                   </button>
                 </div>
               )}
