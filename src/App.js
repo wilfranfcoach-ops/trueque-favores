@@ -1066,12 +1066,68 @@ function AppContenido() {
 }
 
 function App() {
+  const [promptInstalacion, setPromptInstalacion] = useState(null);
+  const [appInstalada, setAppInstalada] = useState(false);
+
+  useEffect(() => {
+    const yaEsStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true;
+    setAppInstalada(yaEsStandalone);
+
+    const manejarPrompt = (e) => {
+      e.preventDefault();
+      setPromptInstalacion(e);
+    };
+    window.addEventListener("beforeinstallprompt", manejarPrompt);
+
+    const manejarInstalada = () => {
+      setAppInstalada(true);
+      setPromptInstalacion(null);
+    };
+    window.addEventListener("appinstalled", manejarInstalada);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", manejarPrompt);
+      window.removeEventListener("appinstalled", manejarInstalada);
+    };
+  }, []);
+
+  const instalarApp = async () => {
+    if (!promptInstalacion) return;
+    promptInstalacion.prompt();
+    await promptInstalacion.userChoice;
+    setPromptInstalacion(null);
+  };
+
+  const esIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+
   return (
     <div className="app">
       <header className="header">
         <h1>Trueque de Favores</h1>
         <p>Conecta con tu comunidad. Intercambia servicios sin dinero.</p>
       </header>
+
+      {!appInstalada && promptInstalacion && (
+        <div className="card" style={{ textAlign: "center", background: "#eef4ff", border: "1px solid #0f346033", margin: "0 16px 16px" }}>
+          <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "#444" }}>
+            📲 Instala Trueque en tu celular para acceder más rápido y recibir notificaciones.
+          </p>
+          <button className="btn-primary" onClick={instalarApp} style={{ fontSize: "0.85rem", padding: "8px 16px" }}>
+            Instalar app
+          </button>
+        </div>
+      )}
+
+      {!appInstalada && !promptInstalacion && esIOS && (
+        <div className="card" style={{ textAlign: "center", background: "#eef4ff", border: "1px solid #0f346033", margin: "0 16px 16px" }}>
+          <p style={{ margin: 0, fontSize: "0.85rem", color: "#444" }}>
+            📲 Para instalar: toca el ícono de compartir <strong>⬆️</strong> en Safari y elige <strong>"Agregar a pantalla de inicio"</strong>.
+          </p>
+        </div>
+      )}
+
       <SignedOut>
         <div style={{ textAlign: "center", padding: "2rem" }}>
           <p>Inicia sesión para buscar tu red de trueque</p>
