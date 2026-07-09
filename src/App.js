@@ -172,9 +172,6 @@ function PanelControl({ email, onVolver }) {
 
   const coloresEstado = {
     activo: "#1a7a4a",
-    inactivo: "#888",
-    en_red: "#e94560",
-    completado: "#533483",
     ejecutado: "#0f3460"
   };
 
@@ -205,24 +202,9 @@ function PanelControl({ email, onVolver }) {
               }}>{s.estado}</span>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {(s.estado === "activo" || s.estado === "en_red") && (
+              {s.estado === "activo" && (
                 <button onClick={() => cambiarEstado(s.id, "ejecutado")} style={{ fontSize: "0.75rem", padding: "4px 10px", borderRadius: 6, border: "1px solid #0f3460", cursor: "pointer", background: "white", color: "#0f3460" }}>
                   ✅ Ya lo presté
-                </button>
-              )}
-              {s.estado === "activo" && (
-                <button onClick={() => cambiarEstado(s.id, "inactivo")} style={{ fontSize: "0.75rem", padding: "4px 10px", borderRadius: 6, border: "1px solid #ccc", cursor: "pointer", background: "white" }}>
-                  Pausar
-                </button>
-              )}
-              {s.estado === "inactivo" && (
-                <button onClick={() => cambiarEstado(s.id, "activo")} style={{ fontSize: "0.75rem", padding: "4px 10px", borderRadius: 6, border: "1px solid #1a7a4a", cursor: "pointer", background: "white", color: "#1a7a4a" }}>
-                  Activar
-                </button>
-              )}
-              {s.estado === "en_red" && (
-                <button onClick={() => cambiarEstado(s.id, "completado")} style={{ fontSize: "0.75rem", padding: "4px 10px", borderRadius: 6, border: "1px solid #533483", cursor: "pointer", background: "white", color: "#533483" }}>
-                  Completado
                 </button>
               )}
               <button onClick={() => eliminar(s.id)} style={{ fontSize: "0.75rem", padding: "4px 10px", borderRadius: 6, border: "1px solid #e94560", cursor: "pointer", background: "white", color: "#e94560" }}>
