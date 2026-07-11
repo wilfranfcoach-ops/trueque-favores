@@ -864,6 +864,18 @@ function AppContenido() {
               </button>
             </div>
             <div style={{ padding: "16px 20px", overflowY: "auto", fontSize: "0.88rem", color: "#333", lineHeight: 1.5 }}>
+              <div style={{
+                position: "relative", width: "100%", maxWidth: 260, margin: "0 auto 16px",
+                aspectRatio: "9 / 16", borderRadius: 12, overflow: "hidden", background: "#000"
+              }}>
+                <iframe
+                  src="https://www.youtube.com/embed/DsGTvDqTA9o"
+                  title="Cómo funciona Trueque de Favores"
+                  style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
               <p><strong>1. Ingresa tus servicios.</strong> Registra qué necesitas y qué ofreces a cambio.</p>
               <p><strong>2. Revisa tus redes con frecuencia.</strong> Nuevas cadenas pueden formarse en cualquier momento.</p>
               <p><strong>3. Cuando te llegue una red, actívala.</strong> Paga tu cuota de $5.000 COP para desbloquear el contacto de la persona a quien le vas a prestar tu servicio.</p>
