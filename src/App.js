@@ -1036,7 +1036,11 @@ function AppContenido() {
         <div className="card" style={{ border: "1px solid #f5a62355", background: "#fff8e6" }}>
           <h2>Completa tu perfil</h2>
           <p style={{ fontSize: "0.85rem", color: "#666" }}>
-            Necesitamos tu teléfono y tu ciudad para que puedan contactarte y hacerte match con gente cerca. Solo se pide una vez.
+            {pidiendoTelefono && pidiendoCiudad
+              ? "Necesitamos tu teléfono y tu ciudad para que puedan contactarte y hacerte match con gente cerca. Solo se pide una vez."
+              : pidiendoTelefono
+              ? "Necesitamos tu teléfono para que puedan contactarte cuando se forme una red. Solo se pide una vez."
+              : "Necesitamos tu ciudad para poder hacerte match con gente cerca. Solo se pide una vez."}
           </p>
            {pidiendoTelefono && (
             <input
