@@ -615,7 +615,7 @@ function AppContenido() {
   };
 
   const guardarTelefono = async () => {
-    if (!telefonoInput.trim()) {
+    if (pidiendoTelefono && !telefonoInput.trim()) {
       alert("Por favor ingresa tu teléfono");
       return;
     }
@@ -625,26 +625,29 @@ function AppContenido() {
     }
     setGuardandoTelefono(true);
     try {
+      const telefonoAEnviar = pidiendoTelefono ? telefonoInput.trim() : telefono;
       await fetch(`${API}/usuario`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
-          telefono: telefonoInput.trim(),
+          telefono: telefonoAEnviar,
           foto,
           nombre,
           ciudad: pidiendoCiudad ? ciudadInput : undefined
         })
       });
-      setTelefono(telefonoInput.trim());
-      setPidiendoTelefono(false);
+      if (pidiendoTelefono) {
+        setTelefono(telefonoInput.trim());
+        setPidiendoTelefono(false);
+      }
       if (pidiendoCiudad) {
         setCiudad(ciudadInput);
         setPidiendoCiudad(false);
       }
     } catch (err) {
       console.error(err);
-      alert("No se pudo guardar el teléfono, intenta de nuevo.");
+      alert("No se pudo guardar, intenta de nuevo.");
     }
     setGuardandoTelefono(false);
   };
@@ -1029,18 +1032,20 @@ function AppContenido() {
         </div>
       )}
 
-      {pidiendoTelefono && (
+      {(pidiendoTelefono || pidiendoCiudad) && (
         <div className="card" style={{ border: "1px solid #f5a62355", background: "#fff8e6" }}>
           <h2>Completa tu perfil</h2>
           <p style={{ fontSize: "0.85rem", color: "#666" }}>
             Necesitamos tu teléfono y tu ciudad para que puedan contactarte y hacerte match con gente cerca. Solo se pide una vez.
           </p>
-          <input
-            type="text"
-            placeholder="Ej: +57 300 123 4567"
-            value={telefonoInput}
-            onChange={e => setTelefonoInput(e.target.value)}
-          />
+           {pidiendoTelefono && (
+            <input
+              type="text"
+              placeholder="Ej: +57 300 123 4567"
+              value={telefonoInput}
+              onChange={e => setTelefonoInput(e.target.value)}
+            />
+          )}
           {pidiendoCiudad && (
             <select
               value={ciudadInput}
