@@ -4,6 +4,12 @@ import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/c
 
 const API = "https://trueque-favores-production.up.railway.app";
 
+const CIUDADES = [
+  "Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena",
+  "Bucaramanga", "Pereira", "Manizales", "Santa Marta", "Cúcuta",
+  "Ibagué", "Villavicencio", "Pasto", "Armenia", "Neiva", "Otra"
+];
+
 const FRASES_MOTIVADORAS = [
   "Hoy alguien necesita exactamente lo que tú sabes hacer.",
   "No mides tu talento en pesos. Lo mides en el tiempo que estás dispuesto a dar.",
@@ -286,7 +292,12 @@ function AppContenido() {
   const [telefonoInput, setTelefonoInput] = useState("");
   const [pidiendoTelefono, setPidiendoTelefono] = useState(false);
   const [guardandoTelefono, setGuardandoTelefono] = useState(false);
+  
+  const [ciudad, setCiudad] = useState("");
+  const [ciudadInput, setCiudadInput] = useState("");
+  const [pidiendoCiudad, setPidiendoCiudad] = useState(false);
 
+  const [ofreceRemoto, setOfreceRemoto] = useState(false);
   // --- Minilibro de filosofia Trueque (se muestra 1 sola vez, al primer ingreso) ---
   const [mostrarMinilibro, setMostrarMinilibro] = useState(false);
 
@@ -330,6 +341,12 @@ function AppContenido() {
           setPidiendoTelefono(false);
         } else {
           setPidiendoTelefono(true);
+        }
+          if (datosUsuario.usuario && datosUsuario.usuario.ciudad) {
+          setCiudad(datosUsuario.usuario.ciudad);
+          setPidiendoCiudad(false);
+        } else {
+          setPidiendoCiudad(true);
         }
 
         const aceptoPolitica = !!datosUsuario.usuario?.acepto_politica;
@@ -602,15 +619,29 @@ function AppContenido() {
       alert("Por favor ingresa tu teléfono");
       return;
     }
+    if (pidiendoCiudad && !ciudadInput) {
+      alert("Por favor selecciona tu ciudad");
+      return;
+    }
     setGuardandoTelefono(true);
     try {
       await fetch(`${API}/usuario`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, telefono: telefonoInput.trim(), foto, nombre })
+        body: JSON.stringify({
+          email,
+          telefono: telefonoInput.trim(),
+          foto,
+          nombre,
+          ciudad: pidiendoCiudad ? ciudadInput : undefined
+        })
       });
       setTelefono(telefonoInput.trim());
       setPidiendoTelefono(false);
+      if (pidiendoCiudad) {
+        setCiudad(ciudadInput);
+        setPidiendoCiudad(false);
+      }
     } catch (err) {
       console.error(err);
       alert("No se pudo guardar el teléfono, intenta de nuevo.");
@@ -633,7 +664,7 @@ function AppContenido() {
       const respuesta = await fetch(`${API}/buscar-red`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, ofrece, necesita, telefono, foto, nombre }),
+        body: JSON.stringify({ email, ofrece, necesita, telefono, foto, nombre, ciudad, ofreceRemoto }),
       });
       const datos = await respuesta.json();
       if (datos.redes && datos.redes.length > 0) {
@@ -649,6 +680,7 @@ function AppContenido() {
       }
       setOfrece("");
       setNecesita("");
+      setOfreceRemoto(false);
     } catch (error) {
       setMensaje("Error conectando con el servidor.");
     }
@@ -1001,7 +1033,7 @@ function AppContenido() {
         <div className="card" style={{ border: "1px solid #f5a62355", background: "#fff8e6" }}>
           <h2>Completa tu perfil</h2>
           <p style={{ fontSize: "0.85rem", color: "#666" }}>
-            Necesitamos tu teléfono para que puedan contactarte cuando se forme una red. Solo se pide una vez.
+            Necesitamos tu teléfono y tu ciudad para que puedan contactarte y hacerte match con gente cerca. Solo se pide una vez.
           </p>
           <input
             type="text"
@@ -1009,13 +1041,23 @@ function AppContenido() {
             value={telefonoInput}
             onChange={e => setTelefonoInput(e.target.value)}
           />
+          {pidiendoCiudad && (
+            <select
+              value={ciudadInput}
+              onChange={e => setCiudadInput(e.target.value)}
+              style={{ width: "100%", marginTop: 8, padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
+            >
+              <option value="">Selecciona tu ciudad</option>
+              {CIUDADES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
           <button
             className="btn-primary"
             onClick={guardarTelefono}
             disabled={guardandoTelefono}
             style={{ marginTop: 8 }}
           >
-            {guardandoTelefono ? "Guardando..." : "Guardar teléfono"}
+            {guardandoTelefono ? "Guardando..." : "Guardar"}
           </button>
         </div>
       )}
@@ -1033,6 +1075,19 @@ function AppContenido() {
       <div className="card">
         <h2>Que ofreces a cambio?</h2>
         <input type="text" placeholder="Ej: Barberia, Diseno..." value={ofrece} onChange={e => setOfrece(e.target.value)} />
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: "0.85rem", color: "#444", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={ofreceRemoto}
+            onChange={e => setOfreceRemoto(e.target.checked)}
+          />
+          💻 Puedo prestar este servicio de forma remota (no requiere estar en mi ciudad)
+        </label>
+        {!ofreceRemoto && (
+          <p style={{ fontSize: "0.78rem", color: "#888", margin: "6px 0 0" }}>
+            📍 Este servicio solo hará match con personas en <strong>{ciudad || "tu ciudad"}</strong>.
+          </p>
+        )}
       </div>
       <button className="btn-primary" onClick={buscarRed} disabled={cargando}>
         {cargando ? "Buscando..." : "Agregar y buscar redes"}
