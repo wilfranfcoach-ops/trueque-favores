@@ -321,6 +321,17 @@ function AppContenido() {
   const nombre = user?.firstName || "";
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const idTransaccion = params.get("id");
+    if (idTransaccion) {
+      confirmarPago(idTransaccion).then(() => {
+        window.history.replaceState({}, "", window.location.pathname);
+      });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+
+  useEffect(() => {
     if (!email) return;
     const yaVisto = localStorage.getItem(`minilibro_visto_${email}`);
     if (!yaVisto) {
@@ -509,24 +520,11 @@ function AppContenido() {
           alert("No se pudo iniciar el pago. Intenta de nuevo.");
           return;
         }
-        if (!window.WidgetCheckout) {
-          alert("El widget de pagos no cargó. Recarga la página e intenta de nuevo.");
+if (!datos.urlPago) {
+          alert("No se pudo generar el link de pago. Intenta de nuevo.");
           return;
         }
-        const checkout = new window.WidgetCheckout({
-          currency: datos.currency,
-          amountInCents: datos.amountInCents,
-          reference: datos.reference,
-          publicKey: datos.publicKey,
-          signature: { integrity: datos.signature },
-          redirectUrl: window.location.origin + "/"
-        });
-        checkout.open(async (result) => {
-          const transaccion = result?.transaction;
-          if (transaccion?.id) {
-            await confirmarPago(transaccion.id);
-          }
-        });
+        window.location.href = datos.urlPago;
       } catch (err) {
         console.error("Error iniciando pago:", err);
       }
